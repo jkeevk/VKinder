@@ -47,7 +47,7 @@ class VkApi(ApiBasic):
     def __init__(self, token):
         self.params = {
                         'access_token': token,
-                        'v': '5.131'
+                        'v': '5.199'
                         }
 
     def get_user(self, user_id):
@@ -56,7 +56,7 @@ class VkApi(ApiBasic):
         return self._send_request(http_method='GET',
                                   uri_path='method/users.get',
                                   params={'user_id': user_id,
-                                          'name_case': 'gen',
+                                          'fields': 'city, sex, bdate',
                                           **self.params
                                           },
                                   response_type='json'
@@ -77,10 +77,10 @@ class VkApi(ApiBasic):
         foto_count = 3
         list_foto = dict()
 
-        if len(all_foto) == 0:
+        if all_foto['response']['count'] == 0:
             return "фотографии нет"
-        elif len(all_foto) < 3:
-            foto_count = len(all_foto)
+        elif all_foto['response']['count'] < 3:
+            foto_count = all_foto['response']['count']
 
         for i in all_foto['response']['items']:
             list_foto[i['id']] = {"url": i['sizes'][-1]['url'], "likes": i['likes']['count']}
@@ -91,11 +91,24 @@ if __name__ == '__main__':
 
     with open('token.json', 'r') as file:
         data_json = json.load(file)
-        access_token = data_json["access_token"]
+        group_access_token = data_json["access_token"]
         user_id = data_json["user_id"]
 
-    vk = VkApi(access_token)
-    print(vk.get_user(user_id))
+    vk = VkApi(group_access_token)
+    vk_user = vk.get_user(user_id)
+    vk_user_name = vk_user['response'][0]['first_name']
+    vk_user_lname = vk_user['response'][0]['last_name']
+    vk_user_city = vk_user['response'][0]['city']['title']
+    vk_user_sex = 'Женский' if vk_user['response'][0]['sex'] == 1 else 'Мужской' if vk_user['response'][0]['sex'] == 2\
+        else 'Неизвестный'
+    vk_user_bdate = vk_user['response'][0]['bdate']
+
+    print(f"Имя: {vk_user_name}")
+    print(f"Фамилия: {vk_user_lname}")
+    print(f"Город: {vk_user_city}")
+    print(f"Пол: {vk_user_sex}")
+    print(f"Дата рождения: {vk_user_bdate}")
 
     all_foto = dict(vk.get_user_photos(user_id))
     pprint(vk.get_top3_likes(all_foto))
+    # pprint(all_foto)
