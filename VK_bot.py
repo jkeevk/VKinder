@@ -1,7 +1,6 @@
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
-from VK_class import ApiBasic, My_VkApi, HttpException
-import json
+from VK_class import My_VkApi
 
 def write_msg(user_id, message):
     vk.method('messages.send', {'user_id': user_id, 'message': message, 'random_id': 0})
