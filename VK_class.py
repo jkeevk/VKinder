@@ -63,11 +63,11 @@ class My_VkApi(ApiBasic):
                                           },
                                   response_type='json'
                                   )
-        user_info[user_id] = {user_info_resp['response'][0]['first_name'],
-                              user_info_resp['response'][0]['last_name'],
-                              user_info_resp['response'][0]['city']['title'],
-                              user_info_resp['response'][0]['bdate'],
-                              'Женский' if user_info_resp['response'][0]['sex'] == 1 else 'Мужской'
+        user_info[user_id] = {"name": user_info_resp['response'][0]['first_name'],
+                              "lastname": user_info_resp['response'][0]['last_name'],
+                              "city": user_info_resp['response'][0]['city']['title'],
+                              "bdate": user_info_resp['response'][0]['bdate'],
+                              "sex": 'Женский' if user_info_resp['response'][0]['sex'] == 1 else 'Мужской'
                               if user_info_resp['response'][0]['sex'] == 2 else 'Неизвестный'
                               }
         return user_info
@@ -143,6 +143,6 @@ if __name__ == '__main__':
     sex = 1 # женский
     age_from = 18
     age_to = 50
-    city = vk_user_city # город нашего пользователя
+    city = vk_user[user_id]['city'] # город нашего пользователя
 
     pprint(vk.search_users(sex, age_from, age_to, city))
