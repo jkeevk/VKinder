@@ -2,6 +2,8 @@ import requests
 import json
 from pprint import pprint
 
+import vk_api
+
 
 class HttpException(Exception):
     """Класс исключения, выбрасываем, когда API возвращает ошибку"""
@@ -94,6 +96,32 @@ class My_VkApi(ApiBasic):
             list_foto[i['id']] = {"url": i['sizes'][-1]['url'], "likes": i['likes']['count']}
 
         return sorted(list_foto.items(), key=lambda x: x[1]['likes'], reverse=True)[:foto_count]
+    
+    def search_users(self, sex, age_from, age_to, city):
+        all_persons = []
+        link_profile = 'https://vk.com/id'
+        vk_ = vk_api.VkApi(token=user_token)
+        response = vk_.method('users.search',
+                            {'sort': 1, # Параметр, отвечающий за сортировку результатов. Значение `1` означает, что результаты сортируются по релевантности.
+                            'sex': sex, # Пол искомых пользователей. `1` — женский, `2` — мужской, `0` — не указывать пол.
+                            'status': 1, # Семейное положение. Значение `1` означает, что пользователи должны быть "неженаты" (то есть, ищем тех, кто свободен)
+                            'age_from': age_from, # Минимальный возраст пользователей (например, `18`).
+                            'age_to': age_to, # Максимальный возраст пользователей (например, `30`).
+                            'has_photo': 1, # Указывает, должны ли искомые пользователи иметь фотографии. Значение `1` ищет пользователей с фото.
+                            'count': 3, # Количество возвращаемых результатов (например, `3` — возвращать 3 пользователей).
+                            'online': 1, # Указывает, должны ли пользователи быть онлайн в данный момент. Значение `1` ищет только тех, кто в сети.
+                            'hometown': city # Город, в котором должны находиться искомые пользователи (например, название города).
+                            })
+        for element in response['items']:
+            all_foto = dict(vk.get_user_photos(element['id'])) # Получаем все фото пользователя
+            person = [
+                element['first_name'],
+                element['last_name'],
+                link_profile + str(element['id']),
+                vk.get_top3_likes(all_foto) # Получаем топ 3 фото по количеству лайков
+            ]
+            all_persons.append(person)
+        return all_persons
 
 if __name__ == '__main__':
 
@@ -101,11 +129,20 @@ if __name__ == '__main__':
         data_json = json.load(file)
         group_access_token = data_json["access_token"]
         user_id = data_json["user_id"]
+        user_token = data_json["access_token"]
 
     vk = My_VkApi(group_access_token)
     vk_user = vk.get_user(user_id)
     pprint(vk_user)
 
-    all_foto = dict(vk.get_user_photos(user_id))
-    pprint(vk.get_top3_likes(all_foto))
+    # all_foto = dict(vk.get_user_photos(user_id))
+    # pprint(vk.get_top3_likes(all_foto))
     # pprint(all_foto)
+
+
+    sex = 1 # женский
+    age_from = 18
+    age_to = 50
+    city = vk_user_city # город нашего пользователя
+
+    pprint(vk.search_users(sex, age_from, age_to, city))
