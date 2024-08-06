@@ -41,7 +41,7 @@ class ApiBasic:
             return response
 
 
-class VkApi(ApiBasic):
+class My_VkApi(ApiBasic):
     host = 'https://api.vk.com/'
 
     def __init__(self, token):
@@ -52,8 +52,8 @@ class VkApi(ApiBasic):
 
     def get_user(self, user_id):
         """Получаем пользователя, используя унаследованный метод _send_request"""
-
-        return self._send_request(http_method='GET',
+        user_info = dict()
+        user_info_resp = self._send_request(http_method='GET',
                                   uri_path='method/users.get',
                                   params={'user_id': user_id,
                                           'fields': 'city, sex, bdate',
@@ -61,6 +61,14 @@ class VkApi(ApiBasic):
                                           },
                                   response_type='json'
                                   )
+        user_info[user_id] = {user_info_resp['response'][0]['first_name'],
+                              user_info_resp['response'][0]['last_name'],
+                              user_info_resp['response'][0]['city']['title'],
+                              user_info_resp['response'][0]['bdate'],
+                              'Женский' if user_info_resp['response'][0]['sex'] == 1 else 'Мужской'
+                              if user_info_resp['response'][0]['sex'] == 2 else 'Неизвестный'
+                              }
+        return user_info
 
     def get_user_photos(self, user_id):
         return self._send_request(http_method='GET',
@@ -94,20 +102,9 @@ if __name__ == '__main__':
         group_access_token = data_json["access_token"]
         user_id = data_json["user_id"]
 
-    vk = VkApi(group_access_token)
+    vk = My_VkApi(group_access_token)
     vk_user = vk.get_user(user_id)
-    vk_user_name = vk_user['response'][0]['first_name']
-    vk_user_lname = vk_user['response'][0]['last_name']
-    vk_user_city = vk_user['response'][0]['city']['title']
-    vk_user_sex = 'Женский' if vk_user['response'][0]['sex'] == 1 else 'Мужской' if vk_user['response'][0]['sex'] == 2\
-        else 'Неизвестный'
-    vk_user_bdate = vk_user['response'][0]['bdate']
-
-    print(f"Имя: {vk_user_name}")
-    print(f"Фамилия: {vk_user_lname}")
-    print(f"Город: {vk_user_city}")
-    print(f"Пол: {vk_user_sex}")
-    print(f"Дата рождения: {vk_user_bdate}")
+    pprint(vk_user)
 
     all_foto = dict(vk.get_user_photos(user_id))
     pprint(vk.get_top3_likes(all_foto))
