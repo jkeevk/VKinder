@@ -3,7 +3,6 @@ import configparser
 from typing import List, Optional
 
 
-
 class DB_creator:
     """Класс для создания БД.
 
@@ -335,6 +334,7 @@ def test_create_db():
         if db.conn.closed == 1
         else "Close connection!"
     )
+
 
 def test_edit_db():
     """
