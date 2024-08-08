@@ -1,6 +1,7 @@
 import psycopg2
 import configparser
 from typing import List, Optional
+import VK_class
 
 
 class DB_creator:
@@ -76,7 +77,7 @@ class DB_creator:
         port = config["SETTINGS"]["port"]
         return database, user, password, host, port
 
-    def create_database(database: str) -> None:
+    def create_database(database: str='vkinder') -> None:
         """
         Создает новую базу данных.
 
@@ -194,7 +195,7 @@ class DB_editor:
     Примечания:
         Настройки подключения хранятся в файле settings.ini
     """
-    def __init__(self, database: str) -> None:
+    def __init__(self, database: str='vkinder') -> None:
         """
         Инициализация соединения с базой данных PostgreSQL.
 
@@ -379,4 +380,49 @@ def test_edit_db():
 if __name__ == "__main__":
     database = "vkinder"
     test_create_db()
-    test_edit_db()
+    # test_edit_db()
+    # данные нашего пользователя (получает бот)
+    vk_id = 1
+    vk_user_city = 'Санкт-Петербург'
+    vk_user_sex = 2
+    vk_user_age = 32
+    vk_user = DB_editor(database)
+
+    result = [['Ekaterina',
+                'Kalnina',
+                'https://vk.com/id769900586',
+                ['photo769900586_457239020',
+                'photo769900586_457239044',
+                'photo769900586_457239056']],
+                ['Dina',
+                'Volkova',
+                'https://vk.com/id762346971',
+                ['photo762346971_457239017',
+                'photo762346971_457239088',
+                'photo762346971_457240607']],
+                ['Ekaterina',
+                'Balmasova',
+                'https://vk.com/id748335929',
+                ['photo748335929_457239017',
+                'photo748335929_457239085',
+                'photo748335929_457239705']]]
+
+        
+    # создаём запись в базе данных
+    vk_user.register_user(vk_id, vk_user_age, vk_user_sex, vk_user_city)
+
+    # добавляем в черный список id пользователя
+    black_list_user_id = result[0][2].replace('https://vk.com/id', '')
+    vk_user.add_to_black_list(vk_id, black_list_user_id)
+    # добавляем в избранное 
+    name = result[0][0]
+    last_name = result[0][1]
+    url = result[0][2]
+    attachments = [item for item in result[0][3]]
+    vk_user.add_to_favourites(vk_id, name, last_name, url, attachments)
+    # добавляем в избранное 2
+    name = result[1][0]
+    last_name = result[1][1]
+    url = result[1][2]
+    attachments = [item for item in result[1][3]]
+    vk_user.add_to_favourites(vk_id, name, last_name, url, attachments)
