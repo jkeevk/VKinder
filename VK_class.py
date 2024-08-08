@@ -2,6 +2,7 @@ import requests
 import json
 from pprint import pprint
 import datetime
+import time
 
 class HttpException(Exception):
     """Класс исключения, выбрасываем, когда API возвращает ошибку"""
@@ -62,7 +63,12 @@ class My_VkApi(ApiBasic):
                                           },
                                   response_type='json'
                                   )
-        age_user = datetime.datetime.now().year - int(user_info_resp['response'][0]['bdate'].split('.')[2])
+        # если у пользователя скрыт возраст или год рождения, то берем его по умолчанию
+        try:
+            age_user = datetime.datetime.now().year - int(user_info_resp['response'][0]['bdate'].split('.')[2])
+        except:
+            print('Возраст неизвестен, по умолчанию 18')
+            age_user = 18
 
         user_info[user_id] = {"name": user_info_resp['response'][0]['first_name'],
                               "lastname": user_info_resp['response'][0]['last_name'],
@@ -109,7 +115,7 @@ class My_VkApi(ApiBasic):
                                         'age_from': age_from, # Минимальный возраст пользователей (например, `18`).
                                         'age_to': age_to, # Максимальный возраст пользователей (например, `30`).
                                         'has_photo': 1, # Указывает, должны ли искомые пользователи иметь фотографии. Значение `1` ищет пользователей с фото.
-                                        'count': 10, # Количество возвращаемых результатов (например, `3` — возвращать 3 пользователей).
+                                        'count': 3, # Количество возвращаемых результатов (например, `3` — возвращать 3 пользователей).
                                         'online': 1, # Указывает, должны ли пользователи быть онлайн в данный момент. Значение `1` ищет только тех, кто в сети.
                                         'hometown': city, # Город, в котором должны находиться искомые пользователи (например, название города).
                                           **self.params
@@ -118,10 +124,13 @@ class My_VkApi(ApiBasic):
                                   )
 
     def find_users_photos(self, find_users: dict):
+
         all_persons = []
 
         for element in find_users['response']['items']:
+            time.sleep(0.2)
             all_foto = dict(self.get_user_photos(element['id']))  # Получаем все фото пользователя
+
             person = [
                 element['first_name'],
                 element['last_name'],
@@ -148,11 +157,12 @@ if __name__ == '__main__':
     sex_user = vk_user[user_id]['sex']
 
     # pprint(vk.get_user_photos(user_id))
-    sex = 2 if sex_user == 'Женский' else 1 # женский
-    age_from = age_user - 10
+    sex = 2 if sex_user == 'Женский' else 1 # выбор противоположного пола
+    age_from = age_user - 10 if age_user - 10 >= 16 else 16 # минимальный возраст для поиска 16 лет
     age_to = age_user + 5
-    # city = vk_user[user_id]['city'] # город нашего пользователя
+    city = vk_user[user_id]['city'] # город нашего пользователя
     # city = 'Orekhovo-Zuevo'
-    city = 'Ярославль'
+    # city = 'Ярославль'
     find_users = vk.search_users(sex, age_from, age_to, city)
+    # pprint(find_users)
     pprint(vk.find_users_photos(find_users))
