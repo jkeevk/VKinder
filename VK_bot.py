@@ -29,6 +29,7 @@ vk = vk_api.VkApi(token=group_access_token)
 
 # Работа с сообщениями
 longpoll = VkLongPoll(vk)
+print('Bot is running')
 
 
 # Стартовая клавиатура
@@ -53,7 +54,7 @@ def create_keyboard():
     return keyboard.get_keyboard()
 
 # Основной цикл
-for event in longpoll.listen():
+for event in longpoll.listen():    
 
     # Если пришло новое сообщение
     if event.type == VkEventType.MESSAGE_NEW:
@@ -61,7 +62,6 @@ for event in longpoll.listen():
         # Если оно имеет метку для меня (то есть бота)
         if event.to_me:
             vk_user = My_VkApi(group_access_token).get_user_info(event.user_id)
-            print(vk_user, event.text)
             sex_user = vk_user[event.user_id]['sex']
             age_user = vk_user[event.user_id]['age']
             sex = 2 if sex_user == 'Женский' else 1  # выбираем противоположный пол
@@ -72,22 +72,22 @@ for event in longpoll.listen():
             # создаём запись в базе данных
             vk_user_id = next(iter(vk_user))
             vk_user_sex = 2 if sex_user == 'Женский' else 1
-            print(vk_user_id, age_user, sex_user, city)
             vk_user_db = DB_editor()
             vk_user_db.register_user(vk_user_id, age_user, vk_user_sex, city)
             
             # Сообщение от пользователя
             request = event.text
 
+            # Поиск людей
+            find_users = My_VkApi(user_token).search_users(sex, age_from, age_to, city)
+            find_photos = My_VkApi(user_token).find_users_photos(find_users)
+            target_name = find_photos[0][0]
+            target_last_name = find_photos[0][1]
+            target_url = find_photos[0][2]
+            target_attachments = [item for item in find_photos[0][3]]
+
             # Логика ответа
             if request.lower() == "поиск пары":
-                # Поиск людей
-                find_users = My_VkApi(user_token).search_users(sex, age_from, age_to, city)
-                find_photos = My_VkApi(user_token).find_users_photos(find_users)
-                target_name = find_photos[0][0]
-                target_last_name = find_photos[0][1]
-                target_url = find_photos[0][2]
-                target_attachments = [item for item in find_photos[0][3]]
                 write_msg(event.user_id, f'{target_name} {target_last_name}')
                 write_msg(event.user_id, target_url)
                 write_msg(event.user_id, '',attachment=f'{",".join(target_attachments)}')
@@ -106,11 +106,21 @@ for event in longpoll.listen():
             elif request.lower() == "пропустить":
                 write_msg(event.user_id, "Вы пропустили эту запись (Придумать как скипнуть)", create_keyboard())
             elif request.lower() == "добавить в избранное":
-                write_msg(event.user_id, "Запись добавлена в избранное (DB_editor.add_to_favourites)", create_keyboard())
+                target_user_id = find_photos[0][2].replace('https://vk.com/id', '')
+                add_to_favourites = vk_user_db.add_to_favourites(vk_user_id, target_name, target_last_name, target_url, target_attachments)
+                write_msg(event.user_id, find_photos[0][2])
+                write_msg(event.user_id, "Запись добавлена в избранное", create_keyboard())
             elif request.lower() == "добавить в чёрный список":
-                write_msg(event.user_id, "Запись добавлена в чёрный список (DB_editor.add_to_black_list)", create_keyboard())
+                target_user_id = find_photos[0][2].replace('https://vk.com/id', '')
+                add_to_black_list = vk_user_db.add_to_black_list(vk_user_id, target_user_id)
+                write_msg(event.user_id, find_photos[0][2])
+                write_msg(event.user_id, "Запись добавлена в чёрный список", create_keyboard())
             elif request.lower() == "просмотреть избранное":
-                write_msg(event.user_id, "Вот ваше избранное: [...] (DB_editor.get_favourites)", create_keyboard())
+                user_get_favourites = vk_user_db.get_favourites(vk_user_id) 
+                write_msg(event.user_id, "Вот ваше избранное:", create_keyboard())
+                for favourite in user_get_favourites:
+                    write_msg(event.user_id, f"{favourite['name']} {favourite['last_name']}: {favourite['url']}")
+
             elif request.lower() == "вернуться в главное меню":
                 write_msg(event.user_id, "Возвращаемся в главное меню", start_buttons())
 
