@@ -69,7 +69,8 @@ class PhotoIterator:
             return target_obj
         else:
             raise StopIteration  # Останавливаем итерацию, если объекты закончились
-   
+
+
 def generate_new_target(iterator):
     try:
         target_obj = next(iterator)  # Получаем следующий элемент
@@ -81,8 +82,9 @@ def generate_new_target(iterator):
         return target_name, target_last_name, target_url, target_attachments 
     
     except StopIteration:
-        write_msg(event.user_id, "Больше нет доступных фотографий.")  # Сообщение о завершении
-    
+        write_msg(event.user_id, "Больше нет доступных фотографий.")
+
+
 photo_iterator = None
 # Основной цикл
 for event in longpoll.listen():
@@ -94,7 +96,7 @@ for event in longpoll.listen():
             user_sex = user_info[event.user_id]['sex']
             user_age = user_info[event.user_id]['age']
             opposite_sex = 2 if user_sex == 'Женский' else 1  # выбираем противоположный пол
-            age_min = user_age - 10
+            age_min = user_age - 10 if user_age - 10 >= 16 else 16 # выбираем минимальный возраст
             age_max = user_age + 5
             user_city = user_info[event.user_id]['city']
 
@@ -130,7 +132,10 @@ for event in longpoll.listen():
 
             elif user_request.lower() == "пропустить":
                 write_msg(event.user_id, "Вы пропустили эту запись", create_keyboard())
-                target_name, target_last_name, target_url, target_attachments = generate_new_target(photo_iterator)
+                try:
+                    target_name, target_last_name, target_url, target_attachments = generate_new_target(photo_iterator)
+                except Exception as e:
+                    write_msg(event.user_id, "Список фотографий закончился. Возвращаемся в главное меню", start_buttons())
 
             elif user_request.lower() == "добавить в избранное":
                 user_database.add_to_favourites(user_vk_id, target_name, target_last_name, target_url, target_attachments)
