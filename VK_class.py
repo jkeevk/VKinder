@@ -95,7 +95,7 @@ class My_VkApi(ApiBasic):
 
         for i in all_foto['response']['items']:
             # list_foto[i['id']] = {"owner_id": i['owner_id'], "likes": i['likes']['count']}
-            list_foto.append([f'photo{i["owner_id"]}_{i["id"]}', i['likes']['count']])
+            list_foto.append(f'photo{i["owner_id"]}_{i["id"]}')
         return sorted(list_foto, key=lambda x: x[1], reverse=True)[:foto_count]
     
 
@@ -109,7 +109,7 @@ class My_VkApi(ApiBasic):
                                         'age_from': age_from, # Минимальный возраст пользователей (например, `18`).
                                         'age_to': age_to, # Максимальный возраст пользователей (например, `30`).
                                         'has_photo': 1, # Указывает, должны ли искомые пользователи иметь фотографии. Значение `1` ищет пользователей с фото.
-                                        'count': 3, # Количество возвращаемых результатов (например, `3` — возвращать 3 пользователей).
+                                        'count': 10, # Количество возвращаемых результатов (например, `3` — возвращать 3 пользователей).
                                         'online': 1, # Указывает, должны ли пользователи быть онлайн в данный момент. Значение `1` ищет только тех, кто в сети.
                                         'hometown': city, # Город, в котором должны находиться искомые пользователи (например, название города).
                                           **self.params
@@ -151,6 +151,8 @@ if __name__ == '__main__':
     sex = 2 if sex_user == 'Женский' else 1 # женский
     age_from = age_user - 10
     age_to = age_user + 5
-    city = vk_user[user_id]['city'] # город нашего пользователя
+    # city = vk_user[user_id]['city'] # город нашего пользователя
+    # city = 'Orekhovo-Zuevo'
+    city = 'Ярославль'
     find_users = vk.search_users(sex, age_from, age_to, city)
     pprint(vk.find_users_photos(find_users))
