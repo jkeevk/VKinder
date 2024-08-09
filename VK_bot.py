@@ -116,8 +116,11 @@ for event in longpoll.listen():
             user_request = event.text
 
             # Логика ответа
-            if user_request.lower() == "поиск пары":                
-                target_name, target_last_name, target_url, target_attachments = generate_new_target(photo_iterator)
+            if user_request.lower() == "поиск пары":  
+                try:              
+                    target_name, target_last_name, target_url, target_attachments = generate_new_target(photo_iterator)
+                except Exception as e:
+                    write_msg(event.user_id, "Список фотографий закончился. Возвращаемся в главное меню", start_buttons())
             elif user_request.lower() == "правила":
                 instructions = (
                     "Привет! Я бот, который поможет вам найти людей для знакомства в социальной сети ВКонтакте 🥰\n\n"
