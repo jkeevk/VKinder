@@ -135,7 +135,7 @@ for event in longpoll.listen():
             elif user_request.lower() == "пропустить":
                 try:
                     # берем следующего пользователя из списка
-                    next_found_user_message(next(all_found_users_generator))
+                    user_id, found_user_fio, top3_user_photos = next_found_user_message(next(all_found_users_generator))
                 except StopIteration:
                     # если список закончился
                     write_msg(event.user_id, "Больше нет доступных фотографий.")
