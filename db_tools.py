@@ -316,6 +316,37 @@ class DB_editor:
             print(f"Error fetching favourites: {e}")
             return None
 
+    def get_black_list(self, user_id: int) -> dict:
+        """
+        Возвращает список заблокированных пользователей для указанного пользователя.
+
+        Параметры:
+            user_id (int): Уникальный идентификатор пользователя, для которого требуется получить black list.
+
+        Возвращаемое значение:
+            dict словарь {"id_пользователя": [список заблокированных пользователей]}
+        """
+        try:
+            self.cur.execute("""
+            SELECT black_list_user_id
+            FROM black_list
+            WHERE user_id = %s
+            """, (user_id,))
+            
+            result = self.cur.fetchall()
+            # Создаем словарь, чтобы хранить заблокированных пользователей для каждого user_id
+            blocked_dict = {}
+
+            # Заполняем словарь
+            for person in result:
+                blocked_dict.setdefault(user_id, []).append(person[0])
+
+            # Формируем возвращаемое значение в запрашиваемом формате
+            return {"user_id": user_id, "blocked": blocked_dict[user_id]}
+
+        except Exception as e:
+            print(f"Error fetching black list: {e}")
+            return None
 
 def test_create_db():
     """
@@ -379,7 +410,7 @@ def test_edit_db():
 
 if __name__ == "__main__":
     database = "vkinder"
-    test_create_db()
+    # test_create_db()
     # test_edit_db()
     # данные нашего пользователя (получает бот)
     vk_id = 1
@@ -388,41 +419,42 @@ if __name__ == "__main__":
     vk_user_age = 32
     vk_user = DB_editor(database)
 
-    result = [['Ekaterina',
-                'Kalnina',
-                'https://vk.com/id769900586',
-                ['photo769900586_457239020',
-                'photo769900586_457239044',
-                'photo769900586_457239056']],
-                ['Dina',
-                'Volkova',
-                'https://vk.com/id762346971',
-                ['photo762346971_457239017',
-                'photo762346971_457239088',
-                'photo762346971_457240607']],
-                ['Ekaterina',
-                'Balmasova',
-                'https://vk.com/id748335929',
-                ['photo748335929_457239017',
-                'photo748335929_457239085',
-                'photo748335929_457239705']]]
+    # result = [['Ekaterina',
+    #             'Kalnina',
+    #             'https://vk.com/id769900586',
+    #             ['photo769900586_457239020',
+    #             'photo769900586_457239044',
+    #             'photo769900586_457239056']],
+    #             ['Dina',
+    #             'Volkova',
+    #             'https://vk.com/id762346971',
+    #             ['photo762346971_457239017',
+    #             'photo762346971_457239088',
+    #             'photo762346971_457240607']],
+    #             ['Ekaterina',
+    #             'Balmasova',
+    #             'https://vk.com/id748335929',
+    #             ['photo748335929_457239017',
+    #             'photo748335929_457239085',
+    #             'photo748335929_457239705']]]
 
         
-    # создаём запись в базе данных
-    vk_user.register_user(vk_id, vk_user_age, vk_user_sex, vk_user_city)
+    # # создаём запись в базе данных
+    # vk_user.register_user(vk_id, vk_user_age, vk_user_sex, vk_user_city)
 
-    # добавляем в черный список id пользователя
-    black_list_user_id = result[0][2].replace('https://vk.com/id', '')
-    vk_user.add_to_black_list(vk_id, black_list_user_id)
-    # добавляем в избранное 
-    name = result[0][0]
-    last_name = result[0][1]
-    url = result[0][2]
-    attachments = [item for item in result[0][3]]
-    vk_user.add_to_favourites(vk_id, name, last_name, url, attachments)
-    # добавляем в избранное 2
-    name = result[1][0]
-    last_name = result[1][1]
-    url = result[1][2]
-    attachments = [item for item in result[1][3]]
-    vk_user.add_to_favourites(vk_id, name, last_name, url, attachments)
+    # # добавляем в черный список id пользователя
+    # black_list_user_id = result[0][2].replace('https://vk.com/id', '')
+    # vk_user.add_to_black_list(vk_id, black_list_user_id)
+    # # добавляем в избранное 
+    # name = result[0][0]
+    # last_name = result[0][1]
+    # url = result[0][2]
+    # attachments = [item for item in result[0][3]]
+    # vk_user.add_to_favourites(vk_id, name, last_name, url, attachments)
+    # # добавляем в избранное 2
+    # name = result[1][0]
+    # last_name = result[1][1]
+    # url = result[1][2]
+    # attachments = [item for item in result[1][3]]
+    # vk_user.add_to_favourites(vk_id, name, last_name, url, attachments)
+

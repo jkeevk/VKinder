@@ -61,17 +61,27 @@ def photo_generator(user_list: list):
 
 
 # Функция для генерации нового пользователя
-def next_fined_user_message(user_id: int):
-    # Получаем Имя и Фамилию пользователя
-    fined_user_fio = My_VkApi(access_token).get_short_user_info(user_id)
-    # Получаем все фотографии пользователя
-    fined_user_photos = My_VkApi(access_token).get_user_photos(user_id)
-    # Выбираем топ 3 лайкнувших фотографии
-    top3_user_photos = get_top3_likes(fined_user_photos)
-    write_msg(event.user_id,
-              f"{str(fined_user_fio)}\nhttps://vk.com/id{user_id}",
-              create_keyboard(),
-              attachment=f"{top3_user_photos}")
+def next_found_user_message(user_id: int):
+    # Проверяем что пользователь не находится в black list
+    blocked_list = user_database.get_black_list(user_vk_id)
+    try:
+        if user_id not in blocked_list['blocked']:
+            found_user_fio = My_VkApi(access_token).get_short_user_info(user_id)
+            # Получаем все фотографии пользователя
+            found_user_photos = My_VkApi(access_token).get_user_photos(user_id)
+            # Выбираем топ 3 лайкнувших фотографии
+            top3_user_photos = get_top3_likes(found_user_photos)
+            write_msg(event.user_id,
+                    f"{str(found_user_fio)}\nhttps://vk.com/id{user_id}",
+                    create_keyboard(),
+                    attachment=f"{top3_user_photos}")
+            return user_id, found_user_fio, top3_user_photos
+        else:
+            next_found_user_message(next(all_found_users_generator))
+    except Exception as e:
+            write_msg(event.user_id, f"Error fetching new user: {e}")
+            return None
+
 
 
 # Основной цикл
@@ -101,12 +111,14 @@ for event in longpoll.listen():
             # Логика ответа
             if user_request.lower() == "поиск пары":  
                 # создаем список всех пользователей
-                all_fined_users = My_VkApi(user_token).search_users(opposite_sex, age_min, age_max, user_city)
-                # создаем генератор
-                all_fined_users_generator = photo_generator(all_fined_users)
-                # берем первого пользователя из списка
-                next_fined_user_message(next(all_fined_users_generator))
-
+                try:
+                    all_found_users = My_VkApi(user_token).search_users(opposite_sex, age_min, age_max, user_city)
+                    # создаем генератор
+                    all_found_users_generator = photo_generator(all_found_users)
+                    # берем первого пользователя из списка
+                    user_id, found_user_fio, top3_user_photos = next_found_user_message(next(all_found_users_generator))
+                except TypeError:
+                    write_msg(event.user_id, "Больше нет доступных фотографий.")
 
             elif user_request.lower() == "правила":
                 instructions = (
@@ -121,27 +133,32 @@ for event in longpoll.listen():
                 write_msg(event.user_id, instructions, start_buttons())
 
             elif user_request.lower() == "пропустить":
-                write_msg(event.user_id, "Вы пропустили эту запись", create_keyboard())
                 try:
                     # берем следующего пользователя из списка
-                    next_fined_user_message(next(all_fined_users_generator))
+                    next_found_user_message(next(all_found_users_generator))
                 except StopIteration:
                     # если список закончился
                     write_msg(event.user_id, "Больше нет доступных фотографий.")
                 #     write_msg(event.user_id, "Список фотографий закончился. Возвращаемся в главное меню", start_buttons())
 
             elif user_request.lower() == "добавить в избранное":
-                write_msg(event.user_id, f"Запись добавлена в избранное", create_keyboard())
-                next_fined_user_message(next(all_fined_users_generator))
-                # user_database.add_to_favourites(user_vk_id, target_name, target_last_name, target_url, target_attachments)
-                # target_name, target_last_name, target_url, target_attachments = generate_new_target(photo_iterator)
+                write_msg(event.user_id, f"https://vk.com/id{user_id}\nЗапись добавлена в избранное", create_keyboard())
+                print(top3_user_photos)
+                user_database.add_to_favourites(
+                                                user_vk_id, 
+                                                found_user_fio.split()[0],
+                                                found_user_fio.split()[1],
+                                                f'https://vk.com/id{user_id}',
+                                                '{' + ''.join(top3_user_photos.split()) + '}'
+                                            )
+                user_id, found_user_fio, top3_user_photos = next_found_user_message(next(all_found_users_generator))
+
 
             elif user_request.lower() == "добавить в чёрный список":
-                pass
-                # target_user_id = target_url.replace('https://vk.com/id', '')
-                # user_database.add_to_black_list(user_vk_id, target_user_id)
-                # write_msg(event.user_id,  f"{target_url}\nЗапись добавлена в чёрный список", create_keyboard())
-                # target_name, target_last_name, target_url, target_attachments = generate_new_target(photo_iterator)
+                write_msg(event.user_id,  f"https://vk.com/id{user_id}\nЗапись добавлена в чёрный список", create_keyboard())
+                user_database.add_to_black_list(user_vk_id, user_id)
+                user_id, found_user_fio, top3_user_photos = next_found_user_message(next(all_found_users_generator))
+
 
             elif user_request.lower() == "просмотреть избранное":
                 user_favourites = user_database.get_favourites(user_vk_id)
