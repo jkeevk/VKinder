@@ -143,7 +143,6 @@ for event in longpoll.listen():
 
             elif user_request.lower() == "добавить в избранное":
                 write_msg(event.user_id, f"https://vk.com/id{user_id}\nЗапись добавлена в избранное", create_keyboard())
-                print(top3_user_photos)
                 user_database.add_to_favourites(
                                                 user_vk_id, 
                                                 found_user_fio.split()[0],
