@@ -3,6 +3,7 @@ import json
 from pprint import pprint
 import datetime
 import time
+import random
 
 class HttpException(Exception):
     """Класс исключения, выбрасываем, когда API возвращает ошибку"""
@@ -52,7 +53,8 @@ class My_VkApi(ApiBasic):
                         }
         self.user_token = token
 
-    def get_user_info(self, user_id):
+# получаем полную информацию о пользователе
+    def get_user_info(self, user_id: int) -> dict:
         """Получаем пользователя, используя унаследованный метод _send_request"""
         user_info = dict()
         user_info_resp = self._send_request(http_method='GET',
@@ -79,7 +81,17 @@ class My_VkApi(ApiBasic):
                               }
         return user_info
 
-    def get_user_photos(self, user_id):
+# получаем короткую информацию о пользователе на выходе строка Имя и Фамилия
+    def get_short_user_info(self, user_id: int) -> str:
+
+        response = self._send_request(http_method='GET',
+                                      uri_path='method/users.get',
+                                      params={'user_id': user_id, **self.params},
+                                      response_type='json')
+        return f"{response['response'][0]['first_name']} {response['response'][0]['last_name']}"
+
+# получаем все фото пользователя
+    def get_user_photos(self, user_id: int):
         return self._send_request(http_method='GET',
                                   uri_path='method/photos.get',
                                   params={'owner_id': user_id,
@@ -90,24 +102,10 @@ class My_VkApi(ApiBasic):
                                   response_type='json'
                                   )
 
-    def get_top3_likes(self, all_foto: dict):
-        foto_count = 3
-        list_foto = list()
-
-        if all_foto['response']['count'] == 0:
-            return "фотографии нет"
-        elif all_foto['response']['count'] < 3:
-            foto_count = all_foto['response']['count']
-
-        for i in all_foto['response']['items']:
-            # list_foto[i['id']] = {"owner_id": i['owner_id'], "likes": i['likes']['count']}
-            list_foto.append(f'photo{i["owner_id"]}_{i["id"]}')
-        return sorted(list_foto, key=lambda x: x[1], reverse=True)[:foto_count]
-    
-
-    def search_users(self, sex, age_from, age_to, city):
-
-        return self._send_request(http_method='GET',
+# Поиск пользователей по параметрам на выходе список идентификаторов пользователей
+    def search_users(self, sex: int, age_from: int, age_to: int, city: str) -> list:
+        all_fined_users_id = []
+        all_fined_users = self._send_request(http_method='GET',
                                   uri_path='method/users.search',
                                   params={'sort': 1, # Параметр, отвечающий за сортировку результатов. Значение `1` означает, что результаты сортируются по релевантности.
                                         'sex': sex, # Пол искомых пользователей. `1` — женский, `2` — мужской, `0` — не указывать пол.
@@ -115,14 +113,20 @@ class My_VkApi(ApiBasic):
                                         'age_from': age_from, # Минимальный возраст пользователей (например, `18`).
                                         'age_to': age_to, # Максимальный возраст пользователей (например, `30`).
                                         'has_photo': 1, # Указывает, должны ли искомые пользователи иметь фотографии. Значение `1` ищет пользователей с фото.
-                                        'count': 3, # Количество возвращаемых результатов (например, `3` — возвращать 3 пользователей).
-                                        'online': 1, # Указывает, должны ли пользователи быть онлайн в данный момент. Значение `1` ищет только тех, кто в сети.
+                                        'count': 100, # Количество возвращаемых результатов (например, `3` — возвращать 3 пользователей).
+                                        'online': 0, # Указывает, должны ли пользователи быть онлайн в данный момент. Значение `1` ищет только тех, кто в сети.
                                         'hometown': city, # Город, в котором должны находиться искомые пользователи (например, название города).
                                           **self.params
                                           },
                                   response_type='json'
                                   )
+        for user in all_fined_users['response']['items']:
+            all_fined_users_id.append(user['id'])
+        random.shuffle(all_fined_users_id)
 
+        return all_fined_users_id
+
+# получаем топ 3 фото по количеству лайков со всего списка пользователей -------РАБОТАТЬ НЕ БУДЕТ !!! изменен список всех пользователей
     def find_users_photos(self, find_users: dict):
 
         all_persons = []
@@ -135,11 +139,27 @@ class My_VkApi(ApiBasic):
                 element['first_name'],
                 element['last_name'],
                 'https://vk.com/id' + str(element['id']),
-                self.get_top3_likes(all_foto)  # Получаем топ 3 фото по количеству лайков
+                get_top3_likes(all_foto)  # Получаем топ 3 фото по количеству лайков
             ]
             all_persons.append(person)
 
         return all_persons
+
+
+# Функция, возвращающая топ 3 фото по количеству лайков из списка всех фото пользователя
+def get_top3_likes(all_foto: dict) -> str:
+    foto_count = 3
+    list_foto = list()
+
+    if all_foto['response']['count'] == 0:
+        return "фотографии нет"
+    elif all_foto['response']['count'] < 3:
+        foto_count = all_foto['response']['count']
+
+    for i in all_foto['response']['items']:
+        list_foto.append(f'photo{i["owner_id"]}_{i["id"]}')
+
+    return " ,".join(sorted(list_foto, key=lambda x: x[1], reverse=True)[:foto_count])
 
 
 if __name__ == '__main__':
@@ -165,4 +185,4 @@ if __name__ == '__main__':
     # city = 'Ярославль'
     find_users = vk.search_users(sex, age_from, age_to, city)
     # pprint(find_users)
-    pprint(vk.find_users_photos(find_users))
+    # pprint(vk.find_users_photos(find_users))
