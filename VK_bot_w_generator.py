@@ -60,12 +60,45 @@ def photo_generator(user_list: list):
         yield user_id  # берем пользователя из списка найденых
 
 
+def start_bot(user_id: int):
+    user_info = My_VkApi(group_access_token).get_user_info(event.user_id)
+    user_sex = user_info[event.user_id]['sex']
+    user_age = user_info[event.user_id]['age']
+    opposite_sex = 2 if user_sex == 'Женский' else 1  # выбираем противоположный пол
+    age_min = user_age - 10 if user_age - 10 >= 16 else 16  # выбираем минимальный возраст
+    age_max = user_age + 5
+    user_city = user_info[event.user_id]['city']
+    # Если город не указан
+    if user_city == 'Неизвестен':
+        write_msg(event.user_id, "Укажите ваш город", start_buttons())
+        user_city = event.text
+        found_city = My_VkApi(group_access_token).search_city(user_city)
+        # здесь можно сделать While True, если город не найден, а в else потом сделать False
+        if found_city == "город не найден":
+            write_msg(event.user_id, "Город не найден, попробуйте повторите ввод", start_buttons())
+            user_city = event.text
+        else:
+            user_city = found_city
+
+    # создаём запись в базе данных
+    user_vk_id = event.user_id  # Получаем ID пользователя
+    user_vk_sex = 2 if user_sex == 'Женский' else 1
+    user_database = DB_editor()  # Создание экземпляра редактора БД
+    user_database.register_user(user_vk_id, user_age, user_vk_sex, user_city)
+
+    all_found_users = My_VkApi(user_token).search_users(opposite_sex, age_min, age_max, user_city)
+    # создаем генератор
+    all_found_users_generator = photo_generator(all_found_users)
+
+    return user_vk_id, user_sex, user_age, opposite_sex, age_min, age_max, user_city, user_database, all_found_users_generator
+
+
 # Функция для генерации нового пользователя
 def next_found_user_message(user_id: int):
     # Проверяем что пользователь не находится в black list
-    blocked_list = user_database.get_black_list(user_vk_id)
+    blocked_list = user_database.get_black_list_user_id(user_vk_id)
     try:
-        if user_id not in blocked_list['blocked']:
+        if user_id not in blocked_list or len(blocked_list) == 0:
             found_user_fio = My_VkApi(access_token).get_short_user_info(user_id)
             # Получаем все фотографии пользователя
             found_user_photos = My_VkApi(access_token).get_user_photos(user_id)
@@ -83,27 +116,18 @@ def next_found_user_message(user_id: int):
             return None
 
 
-
+state_configed = False
 # Основной цикл
 for event in longpoll.listen():
     # Если пришло новое сообщение
     if event.type == VkEventType.MESSAGE_NEW:
         # Если оно имеет метку для меня (то есть бота)
         if event.to_me:
-            user_info = My_VkApi(group_access_token).get_user_info(event.user_id)
-            user_sex = user_info[event.user_id]['sex']
-            user_age = user_info[event.user_id]['age']
-            opposite_sex = 2 if user_sex == 'Женский' else 1  # выбираем противоположный пол
-            age_min = user_age - 10 if user_age - 10 >= 16 else 16 # выбираем минимальный возраст
-            age_max = user_age + 5
-            user_city = user_info[event.user_id]['city']
+            #при получении собщения от пользотваля проверяем флаг конфигурации
 
-            # создаём запись в базе данных
-            user_vk_id = event.user_id  # Получаем ID пользователя
-            user_vk_sex = 2 if user_sex == 'Женский' else 1
-            user_database = DB_editor()  # Создание экземпляра редактора БД
-            user_database.register_user(user_vk_id, user_age, user_vk_sex, user_city)
-
+            if state_configed == False:
+                user_vk_id, user_sex, user_age, opposite_sex, age_min, age_max, user_city, user_database, all_found_users_generator = start_bot(event.user_id)
+                state_configed = True
 
             # Сообщение от пользователя
             user_request = event.text
@@ -112,9 +136,7 @@ for event in longpoll.listen():
             if user_request.lower() == "поиск пары":  
                 # создаем список всех пользователей
                 try:
-                    all_found_users = My_VkApi(user_token).search_users(opposite_sex, age_min, age_max, user_city)
-                    # создаем генератор
-                    all_found_users_generator = photo_generator(all_found_users)
+
                     # берем первого пользователя из списка
                     user_id, found_user_fio, top3_user_photos = next_found_user_message(next(all_found_users_generator))
                 except TypeError:
