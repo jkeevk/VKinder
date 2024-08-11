@@ -348,6 +348,21 @@ class DB_editor:
             print(f"Error fetching black list: {e}")
             return None
 
+    def get_black_list_user_id(self, user_id: int):
+        try:
+            self.cur.execute("""
+            SELECT black_list_user_id
+            FROM black_list
+            WHERE user_id = %s
+            """, (user_id,))
+            # Преобразуем результат в список
+            return [row[0] for row in self.cur.fetchall()]
+
+        except Exception as e:
+            print(f"Error fetching black list: {e}")
+            return None
+
+
 def test_create_db():
     """
     Для отлатки класса DB_creator
