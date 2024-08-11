@@ -67,6 +67,11 @@ class My_VkApi(ApiBasic):
                                   )
         # если у пользователя скрыт возраст или год рождения, то берем его по умолчанию
         try:
+            user_city = user_info_resp['response'][0]['city']['title']
+        except:
+            print('Город неизвестен')
+            user_city = 'Неизвестен'
+        try:
             age_user = datetime.datetime.now().year - int(user_info_resp['response'][0]['bdate'].split('.')[2])
         except:
             print('Возраст неизвестен, по умолчанию 18')
@@ -113,7 +118,7 @@ class My_VkApi(ApiBasic):
                                         'age_from': age_from, # Минимальный возраст пользователей (например, `18`).
                                         'age_to': age_to, # Максимальный возраст пользователей (например, `30`).
                                         'has_photo': 1, # Указывает, должны ли искомые пользователи иметь фотографии. Значение `1` ищет пользователей с фото.
-                                        'count': 100, # Количество возвращаемых результатов (например, `3` — возвращать 3 пользователей).
+                                        'count': 3, # Количество возвращаемых результатов (например, `3` — возвращать 3 пользователей).
                                         'online': 0, # Указывает, должны ли пользователи быть онлайн в данный момент. Значение `1` ищет только тех, кто в сети.
                                         'hometown': city, # Город, в котором должны находиться искомые пользователи (например, название города).
                                           **self.params
@@ -144,6 +149,23 @@ class My_VkApi(ApiBasic):
             all_persons.append(person)
 
         return all_persons
+
+    # функция поиска города
+    def search_city(self, city: str) -> str:
+        found_city = self._send_request(http_method='GET',
+                                  uri_path='method/database.getCities',
+                                  params={'q': city,
+                                          'need_all': 0,
+                                          'count': 1,
+                                          **self.params
+                                          },
+                                  response_type='json'
+                                  )
+        if found_city['response']['count'] == 0:
+            return "Город не найден"
+        else:
+            return found_city['response']['items'][0]['title']
+
 
 
 # Функция, возвращающая топ 3 фото по количеству лайков из списка всех фото пользователя
@@ -181,8 +203,12 @@ if __name__ == '__main__':
     age_from = age_user - 10 if age_user - 10 >= 16 else 16 # минимальный возраст для поиска 16 лет
     age_to = age_user + 5
     city = vk_user[user_id]['city'] # город нашего пользователя
+    search_city = input('введите название города: ')
+    found_city = vk.search_city(search_city)
+
+    print(found_city)
     # city = 'Orekhovo-Zuevo'
     # city = 'Ярославль'
-    find_users = vk.search_users(sex, age_from, age_to, city)
+    # find_users = vk.search_users(sex, age_from, age_to, city)
     # pprint(find_users)
     # pprint(vk.find_users_photos(find_users))
