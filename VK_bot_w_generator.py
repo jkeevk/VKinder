@@ -161,7 +161,8 @@ for event in longpoll.listen():
                 except StopIteration:
                     # если список закончился
                     write_msg(event.user_id, "Больше нет доступных фотографий.")
-                #     write_msg(event.user_id, "Список фотографий закончился. Возвращаемся в главное меню", start_buttons())
+                    state_configed = False
+                    write_msg(event.user_id, "Возвращаемся в главное меню", start_buttons())
 
             elif user_request.lower() == "добавить в избранное":
                 write_msg(event.user_id, f"https://vk.com/id{user_id}\nЗапись добавлена в избранное", create_keyboard())
