@@ -72,7 +72,7 @@ def start_bot(user_id: int):
     if user_city == 'Неизвестен':
         write_msg(event.user_id, "Укажите ваш город", start_buttons())
         user_city = event.text
-        found_city = My_VkApi(group_access_token).search_city(user_city)
+        found_city = My_VkApi(access_token).search_city(user_city)
         # здесь можно сделать While True, если город не найден, а в else потом сделать False
         if found_city == "город не найден":
             write_msg(event.user_id, "Город не найден, попробуйте повторите ввод", start_buttons())
@@ -170,7 +170,7 @@ for event in longpoll.listen():
                                                 user_vk_id, 
                                                 found_user_fio.split()[0],
                                                 found_user_fio.split()[1],
-                                                f'https://vk.com/id{user_id}',
+                                                user_id,
                                                 '{' + ''.join(top3_user_photos.split()) + '}'
                                             )
                 user_id, found_user_fio, top3_user_photos = next_found_user_message(next(all_found_users_generator))
@@ -184,7 +184,7 @@ for event in longpoll.listen():
 
             elif user_request.lower() == "просмотреть избранное":
                 user_favourites = user_database.get_favourites(user_vk_id)
-                favourites_list = [f"{favourite['name']} {favourite['last_name']}: {favourite['url']}" for favourite in user_favourites]
+                favourites_list = [f"{favourite['name']} {favourite['last_name']}: https://vk.com/id{favourite['url']}" for favourite in user_favourites]
                 favourites_message = '\n'.join(favourites_list)
                 write_msg(event.user_id, f'Ваш список избранного:\n\n{favourites_message}', start_buttons())
 

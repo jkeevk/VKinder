@@ -267,10 +267,10 @@ class DB_editor:
             INSERT INTO favourite_users(name, last_name, url, attachments) 
             VALUES(%s, %s, %s, %s)
             ON CONFLICT (url) DO NOTHING;
-            """, (name, last_name, url, attachments if attachments else None))
+            """, (name, last_name, str(url), attachments if attachments else None))
 
             # Получаем id последнего добавленного или существующего.favorite_user_id
-            self.cur.execute("SELECT favourite_user_id FROM favourite_users WHERE url = %s", (url,))
+            self.cur.execute("SELECT favourite_user_id FROM favourite_users WHERE url = %s", (str(url),))
 
             favourite_user_id = self.cur.fetchone()
 
@@ -281,7 +281,7 @@ class DB_editor:
                 INSERT INTO favourites(user_id, favourite_user_id) 
                 VALUES(%s, %s)
                 ON CONFLICT (user_id, favourite_user_id) DO NOTHING;
-                """, (user_id, favourite_user_id))
+                """, (user_id, str(favourite_user_id)))
             else:
                 print("Error fetching favourite user ID.")
 
@@ -310,7 +310,7 @@ class DB_editor:
             
             # Преобразуем результат в список словарей для удобства
             result = self.cur.fetchall()
-            return [{"name": row[0], "last_name": row[1], "url": row[2]} for row in result]
+            return [{"name": row[0], "last_name": row[1], "url": str(row[2])} for row in result]
 
         except Exception as e:
             print(f"Error fetching favourites: {e}")
