@@ -65,6 +65,7 @@ class My_VkApi(ApiBasic):
                                           },
                                   response_type='json'
                                   )
+                                  
         # если у пользователя скрыт возраст или год рождения, то берем его по умолчанию
         try:
             user_city = user_info_resp['response'][0]['city']['title']
@@ -79,7 +80,7 @@ class My_VkApi(ApiBasic):
 
         user_info[user_id] = {"name": user_info_resp['response'][0]['first_name'],
                               "lastname": user_info_resp['response'][0]['last_name'],
-                              "city": user_info_resp['response'][0]['city']['title'],
+                              "city": user_city,
                               "age": age_user,
                               "sex": 'Женский' if user_info_resp['response'][0]['sex'] == 1 else 'Мужской'
                               if user_info_resp['response'][0]['sex'] == 2 else 'Неизвестный'
@@ -193,22 +194,23 @@ if __name__ == '__main__':
         user_token = data_json["access_token"]
 
     vk = My_VkApi(group_access_token)
-    vk_user = vk.get_user_info(user_id)
-    pprint(vk_user)
-    age_user = vk_user[user_id]['age']
-    sex_user = vk_user[user_id]['sex']
+    # vk_user = vk.get_user_info(user_id)
+    # pprint(vk_user)
+    # age_user = vk_user[user_id]['age']
+    # sex_user = vk_user[user_id]['sex']
 
-    # pprint(vk.get_user_photos(user_id))
-    sex = 2 if sex_user == 'Женский' else 1 # выбор противоположного пола
-    age_from = age_user - 10 if age_user - 10 >= 16 else 16 # минимальный возраст для поиска 16 лет
-    age_to = age_user + 5
-    city = vk_user[user_id]['city'] # город нашего пользователя
-    search_city = input('введите название города: ')
-    found_city = vk.search_city(search_city)
+    # # pprint(vk.get_user_photos(user_id))
+    # sex = 2 if sex_user == 'Женский' else 1 # выбор противоположного пола
+    # age_from = age_user - 10 if age_user - 10 >= 16 else 16 # минимальный возраст для поиска 16 лет
+    # age_to = age_user + 5
+    # city = vk_user[user_id]['city'] # город нашего пользователя
+    # search_city = input('введите название города: ')
+    search_city = 'Ярославль'
+    found_city = My_VkApi(group_access_token).search_city(search_city)
 
     print(found_city)
     # city = 'Orekhovo-Zuevo'
     # city = 'Ярославль'
-    # find_users = vk.search_users(sex, age_from, age_to, city)
+    # find_users = vk.search_users(sex, age_from, age_to, found_city)
     # pprint(find_users)
     # pprint(vk.find_users_photos(find_users))
