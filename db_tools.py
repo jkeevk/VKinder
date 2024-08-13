@@ -421,8 +421,135 @@ class DB_editor:
         except Exception as e:
             print(f"Error fetching black list: {e}")
             return None
+        
+    def delete_last_favourite(self, user_id: int):
+        try:
+            self.cur.execute(
+                """
+                SELECT favourite_user_id FROM favourites 
+                WHERE user_id = %s 
+                ORDER BY favourite_user_id DESC 
+                LIMIT 1;
+            """,
+                (user_id,)
+            )
+            last_favourite = self.cur.fetchone()  # Получаем последнюю запись
 
+            if last_favourite:
+                favourite_user_id = last_favourite[0]  # ID последнего избранного пользователя
+                
+                self.cur.execute(
+                    """
+                    DELETE FROM favourites 
+                    WHERE user_id=%s AND favourite_user_id=%s;
+                    """,
+                    (user_id, favourite_user_id)
+                )
 
+                self.cur.execute(
+                    """
+                    DELETE FROM favourite_users 
+                    WHERE favourite_user_id=%s;
+                    """,
+                    (favourite_user_id,)
+                )
+
+                self.conn.commit() 
+                return True
+            else:
+                print("Нет записей для удаления.")
+                return None
+        except Exception as e:
+            print(f"Произошла ошибка: {e}")
+            return None
+        
+    def delete_all_favourites(self, user_id: int):
+        try:
+            self.cur.execute(
+                """
+                    SELECT DISTINCT favourite_user_id FROM favourites
+                    WHERE user_id = %s;
+                """,
+                (user_id,)
+            )
+            favourite_user_ids = self.cur.fetchall()  # Получаем все уникальные favorite_user_id
+
+            self.cur.execute(
+                """
+                    DELETE FROM favourites
+                    WHERE user_id = %s;
+                """,
+                (user_id,)
+            )
+
+            for favourite_user_id in favourite_user_ids:
+                favourite_user_id = favourite_user_id[0]  # Извлекаем ID
+                self.cur.execute(
+                    """
+                        DELETE FROM favourite_users
+                        WHERE favourite_user_id = %s;
+                    """,
+                    (favourite_user_id,)
+                )
+
+            self.conn.commit()
+            print(f"Все избранные записи для пользователя {user_id} удалены.")
+            return True
+
+        except Exception as e:
+            print(f"Произошла ошибка: {e}")
+            self.conn.rollback()  # В случае ошибки откатить транзакцию
+            return None
+        
+    def delete_last_blocked(self, user_id):
+        try:
+            self.cur.execute(
+                """
+                SELECT black_list_id FROM black_list 
+                WHERE user_id = %s 
+                ORDER BY black_list_id DESC 
+                LIMIT 1;
+            """,
+                (user_id,)
+            )
+            last_blocked = self.cur.fetchone()  # Получаем последнюю запись
+
+            if last_blocked:
+                black_list_id = last_blocked[0]  # ID последнего избранного пользователя
+                
+                self.cur.execute(
+                    """
+                    DELETE FROM black_list  
+                    WHERE user_id=%s AND black_list_id=%s;
+                    """,
+                    (user_id, black_list_id)
+                )
+            self.conn.commit() 
+            return True
+        except Exception as e:
+            print(f"Произошла ошибка: {e}")
+            self.conn.rollback()  # В случае ошибки откатить транзакцию
+            return None
+        
+    def delete_all_blocked(self, user_id):
+        try:
+            self.cur.execute(
+                """
+                DELETE FROM black_list 
+                WHERE user_id = %s;
+                """,
+                (user_id,)
+            )
+            
+            self.conn.commit()
+            print(f"Все записи из black_list для пользователя {user_id} удалены.")
+            return True
+            
+        except Exception as e:
+            print(f"Произошла ошибка: {e}")
+            self.conn.rollback()  # В случае ошибки откатить транзакцию
+            return None
+        
 def test_create_db():
     """
     Для отлатки класса DB_creator
@@ -481,5 +608,5 @@ def test_edit_db():
 if __name__ == "__main__":
     database = "vkinder"
     test_create_db()
-    test_edit_db()
+    # test_edit_db()
     
