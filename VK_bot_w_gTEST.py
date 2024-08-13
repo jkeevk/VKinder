@@ -6,8 +6,6 @@ import json
 from db_tools import DB_editor
 from VK_class import get_top3_likes
 
-import requests
-
 
 def write_msg(user_id: int, message: str, keyboard=None, attachment=None):
     """
@@ -210,28 +208,75 @@ def next_found_user_message(user_id: int):
             write_msg(event.user_id, f"Error fetching new user: {e}")
             return None
     
-def send_next_photo(event_user_id, all_found_users_generator):
+def send_next_photo(event_user_id: int, all_found_users_generator) -> tuple:
+    """
+    Получает следующую фотографию пользователя и отправляет информацию о ней.
+
+    Параметры:
+        event_user_id (int): ID события, пользователь, получающий сообщение.
+        all_found_users_generator: Генератор найденных пользователей.
+
+    Возвращаемое значение:
+        tuple: user_id, found_user_fio, top3_user_photos или (None, None, None) в случае исключения.
+    """
     try:
         user_id, found_user_fio, top3_user_photos = next_found_user_message(next(all_found_users_generator))
         return user_id, found_user_fio, top3_user_photos
-    except StopIteration:
-        write_msg(event_user_id, "Больше нет доступных фотографий.")
+    except (StopIteration, TypeError) as e:
+        # Обработка исключений
+        if isinstance(e, StopIteration):
+            write_msg(event_user_id, "Больше нет доступных фотографий.", start_buttons())
+        elif isinstance(e, TypeError):
+            write_msg(event_user_id, "Произошла ошибка при обработке. Пожалуйста, проверьте входные данные.", start_buttons())
+        return None, None, None  # Возврат значений по умолчанию, чтобы не вызывалась ошибка распаковки
 
-def handle_add_to_favourites(event_user_id, user_id, found_user_fio, top3_user_photos):
+def handle_add_to_favourites(event_user_id: int, user_id: int, found_user_fio: str, top3_user_photos: str) -> None:
+    """
+    Обрабатывает добавление пользователя в избранное.
+
+    Параметры:
+        event_user_id (int): ID события, пользователь, получающий сообщение.
+        user_id (int): ID пользователя, которого добавляют в избранное.
+        found_user_fio (str): ФИО найденного пользователя.
+        top3_user_photos (str): Строка с URL-ссылками на три фотографии пользователя.
+
+    Возвращаемое значение:
+        None
+    """
     try:
         user_database.add_to_favourites(user_vk_id, found_user_fio.split()[0], found_user_fio.split()[1], user_id, "{" + "".join(top3_user_photos.split()) + "}")
         write_msg(event_user_id, f"https://vk.com/id{user_id}\nЗапись добавлена в избранное", create_keyboard())
     except StopIteration:
-        write_msg(event_user_id, "Больше нет доступных фотографий.")
+        write_msg(event_user_id, "Больше нет доступных фотографий.", start_buttons())
 
-def handle_add_to_blacklist(event_user_id, user_id, all_found_users_generator):
+def handle_add_to_blacklist(event_user_id: int, user_id: int, all_found_users_generator) -> None:
+    """
+    Обрабатывает добавление пользователя в черный список.
+
+    Параметры:
+        event_user_id (int): ID события, пользователь, получающий сообщение.
+        user_id (int): ID пользователя, который добавляется в черный список.
+        all_found_users_generator: Генератор найденных пользователей.
+
+    Возвращаемое значение:
+        None
+    """
     try:
         user_database.add_to_black_list(user_vk_id, user_id)
         write_msg(event_user_id, f"https://vk.com/id{user_id}\nЗапись добавлена в чёрный список", create_black_list_keyboard())
     except StopIteration:
         write_msg(event_user_id, "Больше нет доступных фотографий", start_buttons())
 
-def handle_city_request(event_user_id):
+def handle_city_request(event_user_id: int) -> bool:
+    """
+    Обрабатывает запрос пользователя о городе и обновляет информацию.
+
+    Параметры:
+        event_user_id (int): ID события, пользователь, получающий сообщение.
+
+    Возвращаемое значение:
+        bool: Состояние конфигурации пользователя (False - сбросить настройки для нового города).
+    """
     user_request = event.text
     found_city = My_VkApi(access_token).search_city(user_request)
     if user_request.lower() == "правила":
@@ -246,8 +291,17 @@ def handle_city_request(event_user_id):
         state_configed = False  # Сбрасываем настройку пользователя для генерации для нового города
         return state_configed
 
-def view_favourites(event_user_id, user_vk_id):
-    user_favourites = user_database.get_favourites(user_vk_id)
+def view_favourites(event_user_id):
+    """
+    Просмотр избранных пользователей и отправка их списка.
+
+    Параметры:
+        event_user_id (int): ID события, пользователь, получающий сообщение.
+
+    Возвращаемое значение:
+        None
+    """
+    user_favourites = user_database.get_favourites(event_user_id)
     favourites_list = [
         f"{favourite['name']} {favourite['last_name']}: https://vk.com/id{favourite['url']}"
         for favourite in user_favourites
@@ -260,20 +314,20 @@ def view_favourites(event_user_id, user_vk_id):
         create_favourite_keyboard()
     )
 
-
+# Основная логика
 for event in longpoll.listen():
     if event.type == VkEventType.MESSAGE_NEW and event.to_me:
         user_vk_id, user_sex, user_age, opposite_sex, age_min, age_max, user_city, user_database = start_bot(event.user_id)
         # Инициализация состояний
         state_configed = False
-
+        # Если город известен, то запускаем генерацию пользователей
         if user_database.get_user_city(event.user_id) != "Неизвестен":
-            if not state_configed:
+            if not state_configed: # Проверяем флаг конфигурации
                 user_city = user_database.get_user_city(user_vk_id)
                 all_found_users = My_VkApi(user_token).search_users(opposite_sex, age_min, age_max, user_city)
                 all_found_users_generator = photo_generator(all_found_users)
                 state_configed = True
-            
+            # Сообщение от пользователя
             user_request = event.text.lower()
             if state_configed:
                 if user_request == "поиск пары":
@@ -292,7 +346,7 @@ for event in longpoll.listen():
                 elif user_request == "добавить в чёрный список":
                     handle_add_to_blacklist(event.user_id, user_id, all_found_users_generator)
                 elif user_request == "просмотреть избранное":
-                    view_favourites(event.user_id, user_vk_id)
+                    view_favourites(event.user_id)
                 elif user_request == "вернуться в главное меню":
                     write_msg(event.user_id, "Возвращаемся в главное меню", start_buttons())
                 elif user_request == 'очистить список':
