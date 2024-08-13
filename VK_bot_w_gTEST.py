@@ -69,7 +69,34 @@ instructions = (
 def photo_generator(user_list: list):
     for user_id in user_list:
         yield user_id  # берем пользователя из списка найденых
+        
+# Функция для инициализации пользователя
+def start_bot(user_id: int):
+    user_id = event.user_id
+    user_info = My_VkApi(group_access_token).get_user_info(user_id)
+    user_sex = user_info[user_id]["sex"]
+    user_age = user_info[user_id]["age"]
+    opposite_sex = (
+        2 if user_sex == "Женский" else 1
+    )  # выбираем противоположный пол
+    age_min = (
+        user_age - 10 if user_age - 10 >= 16 else 16
+    )  # выбираем минимальный возраст
+    age_max = user_age + 5
 
+    user_vk_id = user_id  # Получаем ID пользователя
+    user_vk_sex = 2 if user_sex == "Женский" else 1
+    user_database = DB_editor()  # Создание экземпляра редактора БД
+
+    if not user_database.get_user_city(user_id):
+        user_city = user_info[user_id].get(
+            "city", "Неизвестен"
+        )  # Используем get для безопасного доступа
+    else:
+        user_city = user_database.get_user_city(user_id)
+
+    user_database.register_user(user_vk_id, user_age, user_vk_sex, user_city)
+    return user_vk_id, user_sex, user_age, opposite_sex, age_min, age_max, user_city, user_database
 
 # Функция для генерации нового пользователя
 def next_found_user_message(user_id: int):
@@ -102,29 +129,7 @@ for event in longpoll.listen():
     if event.type == VkEventType.MESSAGE_NEW:
         # Проверка, что сообщение адресовано боту
         if event.to_me:
-            user_info = My_VkApi(group_access_token).get_user_info(event.user_id)
-            user_sex = user_info[event.user_id]["sex"]
-            user_age = user_info[event.user_id]["age"]
-            opposite_sex = (
-                2 if user_sex == "Женский" else 1
-            )  # выбираем противоположный пол
-            age_min = (
-                user_age - 10 if user_age - 10 >= 16 else 16
-            )  # выбираем минимальный возраст
-            age_max = user_age + 5
-
-            user_vk_id = event.user_id  # Получаем ID пользователя
-            user_vk_sex = 2 if user_sex == "Женский" else 1
-            user_database = DB_editor()  # Создание экземпляра редактора БД
-
-            if not user_database.get_user_city(event.user_id):
-                user_city = user_info[event.user_id].get(
-                    "city", "Неизвестен"
-                )  # Используем get для безопасного доступа
-            else:
-                user_city = user_database.get_user_city(event.user_id)
-
-            user_database.register_user(user_vk_id, user_age, user_vk_sex, user_city)
+            user_vk_id, user_sex, user_age, opposite_sex, age_min, age_max, user_city, user_database = start_bot(event.user_id)            
             # Если город известен, продолжаем обработку
             if not user_database.get_user_city(event.user_id) == "Неизвестен":
                 # Если бот еще не настроен для пользователя
