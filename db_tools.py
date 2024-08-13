@@ -189,7 +189,10 @@ class DB_editor:
         register_user: Создает запись о пользователе в таблице users.
         add_to_black_list: Добавляет пользователя в черный список.
         add_to_favourites: Добавляет пользователя в избранное.
-        get_favourites
+        get_favourites: Возвращает список избранных пользователей для указанного пользователя.
+        get_black_list_user_id: Получает список идентификаторов пользователей из черного списка для данного пользователя.
+        get_user_city: Получает город пользователя.
+        update_user_city: Обновляет город пользователя.
 
     Примечания:
         Настройки подключения хранятся в файле settings.ini
@@ -345,47 +348,12 @@ class DB_editor:
             print(f"Error fetching favourites: {e}")
             return None
 
-    def get_black_list(self, user_id: int) -> dict:
-        """
-        Возвращает список заблокированных пользователей для указанного пользователя.
-
-        Параметры:
-            user_id (int): Уникальный идентификатор пользователя, для которого требуется получить black list.
-
-        Возвращаемое значение:
-            dict словарь {"user_id": "id_пользователя", "blocked": [список заблокированных пользователей]}
-        """
-        try:
-            self.cur.execute(
-                """
-            SELECT black_list_user_id
-            FROM black_list
-            WHERE user_id = %s
-            """,
-                (user_id,),
-            )
-
-            result = self.cur.fetchall()
-            # Создаем словарь, чтобы хранить заблокированных пользователей для каждого user_id
-            blocked_dict = {}
-
-            # Заполняем словарь
-            for person in result:
-                blocked_dict.setdefault(user_id, []).append(person[0])
-
-            # Формируем возвращаемое значение в запрашиваемом формате
-            return {"user_id": user_id, "blocked": blocked_dict[user_id]}
-
-        except Exception as e:
-            print(f"Error fetching black list: {e}")
-            return None
-
     def get_user_city(self, user_id: int) -> str:
         """
-        Получает город пользователя по его идентификатору.
+        Получает город пользователя.
 
         Параметры:
-            user_id: Идентификатор пользователя.
+            user_id (int): Идентификатор пользователя.
 
         Возвращаемое значение:
             Название города пользователя или None в случае ошибки.
@@ -407,10 +375,10 @@ class DB_editor:
 
     def update_user_city(self, user_id: int, city: str) -> None:
         """
-        Обновляет город пользователя по его идентификатору.
+        Обновляет город пользователя.
 
         Параметры:
-            user_id: Идентификатор пользователя.
+            user_id (int): Идентификатор пользователя.
 
         Возвращаемое значение:
             Новое название города, которое будет сохранено.
@@ -424,7 +392,7 @@ class DB_editor:
             """,
                 (city, user_id),
             )
-            self.cur.connection.commit()  # Не забудьте закоммитить изменения
+            self.cur.connection.commit()
         except Exception as e:
             print(f"Error updating user city: {e}")
 
@@ -433,7 +401,7 @@ class DB_editor:
         Получает список идентификаторов пользователей из черного списка для данного пользователя.
 
         Параметры:
-            user_id: Идентификатор пользователя.
+            user_id (int): Идентификатор пользователя.
 
         Возвращаемое значение:
             Список идентификаторов черного списка или None в случае ошибки.
@@ -475,7 +443,7 @@ def test_edit_db():
     """
     # данные нашего пользователя (получает бот)
     vk_id = 1
-    vk_user_city = "SPB"
+    vk_user_city = "Санкт-Петербург"
     vk_user_sex = 2
     vk_user_age = 32
     vk_user = DB_editor(database)
@@ -512,51 +480,6 @@ def test_edit_db():
 
 if __name__ == "__main__":
     database = "vkinder"
-    # test_create_db()
-    # test_edit_db()
-    # данные нашего пользователя (получает бот)
-    vk_id = 1
-    vk_user_city = 'Санкт-Петербург'
-    vk_user_sex = 2
-    vk_user_age = 32
-    vk_user = DB_editor(database)
-    # print(vk_user.get_user_city(11767565))
-    # result = [['Ekaterina',
-    #             'Kalnina',
-    #             'https://vk.com/id769900586',
-    #             ['photo769900586_457239020',
-    #             'photo769900586_457239044',
-    #             'photo769900586_457239056']],
-    #             ['Dina',
-    #             'Volkova',
-    #             'https://vk.com/id762346971',
-    #             ['photo762346971_457239017',
-    #             'photo762346971_457239088',
-    #             'photo762346971_457240607']],
-    #             ['Ekaterina',
-    #             'Balmasova',
-    #             'https://vk.com/id748335929',
-    #             ['photo748335929_457239017',
-    #             'photo748335929_457239085',
-    #             'photo748335929_457239705']]]
-
-        
-    # # создаём запись в базе данных
-    # vk_user.register_user(vk_id, vk_user_age, vk_user_sex, vk_user_city)
-
-    # # добавляем в черный список id пользователя
-    # black_list_user_id = result[0][2].replace('https://vk.com/id', '')
-    # vk_user.add_to_black_list(vk_id, black_list_user_id)
-    # # добавляем в избранное 
-    # name = result[0][0]
-    # last_name = result[0][1]
-    # url = result[0][2]
-    # attachments = [item for item in result[0][3]]
-    # vk_user.add_to_favourites(vk_id, name, last_name, url, attachments)
-    # # добавляем в избранное 2
-    # name = result[1][0]
-    # last_name = result[1][1]
-    # url = result[1][2]
-    # attachments = [item for item in result[1][3]]
-    # vk_user.add_to_favourites(vk_id, name, last_name, url, attachments)
-
+    test_create_db()
+    test_edit_db()
+    
