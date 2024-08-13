@@ -5,147 +5,214 @@ import datetime
 import time
 import random
 
-class HttpException(Exception):
-    """Класс исключения, выбрасываем, когда API возвращает ошибку"""
 
-    def __init__(self, status, message=''):
+class HttpException(Exception):
+    """Класс исключения, выбрасываем, когда API возвращает ошибку."""
+
+    def __init__(self, status: int, message: str = ""):
         self.status = status
         self.message = message
 
-    def __str__(self):
-        return f'http error: {self.status}\n{self.message}'
+    def __str__(self) -> str:
+        return f"http error: {self.status}\n{self.message}"
 
 
 class ApiBasic:
-    """Базовый класс API от него будут наследоваться Клиент VK"""
+    """Базовый класс API, от него будут наследоваться Клиент VK."""
 
-    host = ''
+    host = ""
 
-    def _send_request(self, http_method, uri_path, params=None, json=None, response_type=None):
-
-        """Через этот метод будут отправляться все запросы ко всем API.
-          Здесь мы можем обратывать любые исключения, логирвать запросы и т.п.
-
-          :param http_method: GET/POST/PUT/PATCH/DELETE
-          :param uri_path: uri API, например method/users.get
-          :param params:
-          :param json:
-          :param response_type: тип ответа, например json
-          :return:
+    def _send_request(
+        self,
+        http_method: str,
+        uri_path: str,
+        params: dict = None,
+        json: dict = None,
+        response_type: str = None
+    ) -> dict | Exception:
         """
+        Метод для отправки всех запросов к API.
 
-        response = requests.request(http_method, f'{self.host}/{uri_path}', params=params, json=json)  # отправляем запрос
+        Обрабатывает исключения, логирует запросы и т.д.
+
+        Параметры:
+            http_method (str): Метод запроса (GET/POST/PUT/PATCH/DELETE).
+            uri_path (str): URI API, например, method/users.get.
+            params (dict): Параметры запроса.
+            json (dict): Данные в формате JSON для отправки.
+            response_type (dict): Тип ответа (например, json).
+
+        Возвращаемое значение:
+            Ответ от API в формате словаря или Exception в случае ошибки.
+        """
+        response = requests.request(
+            http_method,
+            f"{self.host}/{uri_path}",
+            params=params,
+            json=json
+        )  # отправляем запрос
         if response.status_code >= 400:
-        # если с сервера приходит ошибка выбрасываем исключение
+            # если с сервера приходит ошибка, выбрасываем исключение
             raise HttpException(response.status_code, response.text)
-        if response_type == 'json':
+        if response_type == "json":
             response = response.json()
             return response
 
 
 class My_VkApi(ApiBasic):
-    host = 'https://api.vk.com/'
+    host = "https://api.vk.com/"
 
-    def __init__(self, token):
-        self.params = {
-                        'access_token': token,
-                        'v': '5.199'
-                        }
+    def __init__(self, token: str):
+        """
+        Инициализация клиента VK с токеном доступа.
+
+        Параметры:
+            token: Токен доступа для авторизации в API.
+        """
+        self.params = {"access_token": token, "v": "5.199"}
         self.user_token = token
 
-# получаем полную информацию о пользователе
     def get_user_info(self, user_id: int) -> dict:
-        """Получаем пользователя, используя унаследованный метод _send_request"""
+        """
+        Получает полную информацию о пользователе по его идентификатору.
+
+        Параметры:
+            user_id (int): Идентификатор пользователя.
+
+        Возвращаемое значение:
+            Словарь с информацией о пользователе (имя, фамилия, город, возраст, пол).
+        """
         user_info = dict()
-        user_info_resp = self._send_request(http_method='GET',
-                                  uri_path='method/users.get',
-                                  params={'user_id': user_id,
-                                          'fields': 'city, sex, bdate',
-                                          **self.params
-                                          },
-                                  response_type='json'
-                                  )
-                                  
-        # если у пользователя скрыт возраст или год рождения, то берем его по умолчанию
+        user_info_resp = self._send_request(
+            http_method="GET",
+            uri_path="method/users.get",
+            params={"user_id": user_id, "fields": "city, sex, bdate", **self.params},
+            response_type="json",
+        )
+
+        # Если у пользователя скрыт возраст или год рождения, то берем его по умолчанию
         try:
-            user_city = user_info_resp['response'][0]['city']['title']
+            user_city = user_info_resp["response"][0]["city"]["title"]
         except:
-            print('Город неизвестен')
-            user_city = 'Неизвестен'
+            print("Город неизвестен")
+            user_city = "Неизвестен"
         try:
-            age_user = datetime.datetime.now().year - int(user_info_resp['response'][0]['bdate'].split('.')[2])
+            age_user = datetime.datetime.now().year - int(
+                user_info_resp["response"][0]["bdate"].split(".")[2]
+            )
         except:
-            print('Возраст неизвестен, по умолчанию 18')
+            print("Возраст неизвестен, по умолчанию 18")
             age_user = 18
 
-        user_info[user_id] = {"name": user_info_resp['response'][0]['first_name'],
-                              "lastname": user_info_resp['response'][0]['last_name'],
-                              "city": user_city,
-                              "age": age_user,
-                              "sex": 'Женский' if user_info_resp['response'][0]['sex'] == 1 else 'Мужской'
-                              if user_info_resp['response'][0]['sex'] == 2 else 'Неизвестный'
-                              }
+        user_info[user_id] = {
+            "name": user_info_resp["response"][0]["first_name"],
+            "lastname": user_info_resp["response"][0]["last_name"],
+            "city": user_city,
+            "age": age_user,
+            "sex": "Женский" if user_info_resp["response"][0]["sex"] == 1 else "Мужской"
+                   if user_info_resp["response"][0]["sex"] == 2 else "Неизвестный",
+        }
         return user_info
 
-# получаем короткую информацию о пользователе на выходе строка Имя и Фамилия
     def get_short_user_info(self, user_id: int) -> str:
+        """
+        Получает короткую информацию о пользователе.
 
-        response = self._send_request(http_method='GET',
-                                      uri_path='method/users.get',
-                                      params={'user_id': user_id, **self.params},
-                                      response_type='json')
+        Параметры:
+            user_id (int): Идентификатор пользователя.
+
+        Возвращаемое значение:
+            Строка, содержащая имя и фамилию пользователя.
+        """
+        response = self._send_request(
+            http_method="GET",
+            uri_path="method/users.get",
+            params={"user_id": user_id, **self.params},
+            response_type="json",
+        )
         return f"{response['response'][0]['first_name']} {response['response'][0]['last_name']}"
 
-# получаем все фото пользователя
-    def get_user_photos(self, user_id: int):
-        return self._send_request(http_method='GET',
-                                  uri_path='method/photos.get',
-                                  params={'owner_id': user_id,
-                                          'album_id': 'profile',
-                                          'extended': '1',
-                                          **self.params
-                                          },
-                                  response_type='json'
-                                  )
+    def get_user_photos(self, user_id: int) -> dict:
+        """
+        Получает все фотографии пользователя.
 
-# Поиск пользователей по параметрам на выходе список идентификаторов пользователей
+        Параметры:
+            user_id (int): Идентификатор пользователя.
+
+        Возвращаемое значение:
+            Словарь с информацией о фотографиях пользователя.
+        """
+        return self._send_request(
+            http_method="GET",
+            uri_path="method/photos.get",
+            params={
+                "owner_id": user_id,
+                "album_id": "profile",
+                "extended": "1",
+                **self.params,
+            },
+            response_type="json",
+        )
+    # Поиск пользователей по параметрам на выходе список идентификаторов пользователей
     def search_users(self, sex: int, age_from: int, age_to: int, city: str) -> list:
+        """Получает список идентификаторов пользователей в зависимости от заданных параметров.
+
+        Параметры:
+            sex (int): Пол искомых пользователей (1 - женский, 2 - мужской, 0 - не указывать).
+            age_from (int): Минимальный возраст пользователей.
+            age_to (int): Максимальный возраст пользователей.
+            city (str): Город, в котором должны находиться искомые пользователи.
+
+        Возвращаемое значение:
+            Список идентификаторов найденных пользователей.
+        """
         all_fined_users_id = []
-        all_fined_users = self._send_request(http_method='GET',
-                                  uri_path='method/users.search',
-                                  params={'sort': 1, # Параметр, отвечающий за сортировку результатов. Значение `1` означает, что результаты сортируются по релевантности.
-                                        'sex': sex, # Пол искомых пользователей. `1` — женский, `2` — мужской, `0` — не указывать пол.
-                                        'status': 1, # Семейное положение. Значение `1` означает, что пользователи должны быть "неженаты" (то есть, ищем тех, кто свободен)
-                                        'age_from': age_from, # Минимальный возраст пользователей (например, `18`).
-                                        'age_to': age_to, # Максимальный возраст пользователей (например, `30`).
-                                        'has_photo': 1, # Указывает, должны ли искомые пользователи иметь фотографии. Значение `1` ищет пользователей с фото.
-                                        'count': 3, # Количество возвращаемых результатов (например, `3` — возвращать 3 пользователей).
-                                        'online': 0, # Указывает, должны ли пользователи быть онлайн в данный момент. Значение `1` ищет только тех, кто в сети.
-                                        'hometown': city, # Город, в котором должны находиться искомые пользователи (например, название города).
-                                          **self.params
-                                          },
-                                  response_type='json'
-                                  )
-        for user in all_fined_users['response']['items']:
-            all_fined_users_id.append(user['id'])
+        all_fined_users = self._send_request(
+            http_method="GET",
+            uri_path="method/users.search",
+            params={
+                "sort": 1,  # Параметр, отвечающий за сортировку результатов. Значение `1` означает, что результаты сортируются по релевантности.
+                "sex": sex,  # Пол искомых пользователей. `1` — женский, `2` — мужской, `0` — не указывать пол.
+                "status": 1,  # Семейное положение. Значение `1` означает, что пользователи должны быть "неженаты" (то есть, ищем тех, кто свободен)
+                "age_from": age_from,  # Минимальный возраст пользователей (например, `18`).
+                "age_to": age_to,  # Максимальный возраст пользователей (например, `30`).
+                "has_photo": 1,  # Указывает, должны ли искомые пользователи иметь фотографии.
+                "count": 100,  # Количество возвращаемых результатов.
+                "online": 1,  # Указывает, должны ли пользователи быть онлайн.
+                "hometown": city,  # Город, в котором должны находиться искомые пользователи.
+                **self.params,
+            },
+            response_type="json",
+        )
+        for user in all_fined_users["response"]["items"]:
+            all_fined_users_id.append(user["id"])
         random.shuffle(all_fined_users_id)
 
         return all_fined_users_id
 
-# получаем топ 3 фото по количеству лайков со всего списка пользователей -------РАБОТАТЬ НЕ БУДЕТ !!! изменен список всех пользователей
-    def find_users_photos(self, find_users: dict):
+    def find_users_photos(self, find_users: dict) -> list[list[str]]:
+        """Получает топ 3 фото пользователей по количеству лайков.
+
+        Параметры:
+            find_users (dict): Словарь с информацией о найденных пользователях.
+
+        Возвращаемое значение:
+            Список, где каждый элемент - информация о пользователе (имя, фамилия, ссылка, топ 3 фото).
+        """
 
         all_persons = []
 
-        for element in find_users['response']['items']:
+        for element in find_users["response"]["items"]:
             time.sleep(0.2)
-            all_foto = dict(self.get_user_photos(element['id']))  # Получаем все фото пользователя
+            all_foto = dict(
+                self.get_user_photos(element["id"])
+            )  # Получаем все фото пользователя
 
             person = [
-                element['first_name'],
-                element['last_name'],
-                'https://vk.com/id' + str(element['id']),
-                get_top3_likes(all_foto)  # Получаем топ 3 фото по количеству лайков
+                element["first_name"],
+                element["last_name"],
+                "https://vk.com/id" + str(element["id"]),
+                get_top3_likes(all_foto),  # Получаем топ 3 фото по количеству лайков
             ]
             all_persons.append(person)
 
@@ -153,37 +220,49 @@ class My_VkApi(ApiBasic):
 
     # функция поиска города
     def search_city(self, city: str) -> str:
-        found_city = self._send_request(http_method='GET',
-                                  uri_path='method/database.getCities',
-                                  params={'q': city,
-                                          'need_all': 0,
-                                          'count': 1,
-                                          **self.params
-                                          },
-                                  response_type='json'
-                                  )
-        if found_city['response']['count'] == 0:
+        """
+        Ищет город по названию.
+
+        Параметры:
+            city (str): Название города для поиска.
+
+        Возвращаемое значение:
+            Название найденного города или сообщение о том, что город не найден.
+        """
+        found_city = self._send_request(
+            http_method="GET",
+            uri_path="method/database.getCities",
+            params={"q": city, "need_all": 0, "count": 1, **self.params},
+            response_type="json",
+        )
+        if found_city["response"]["count"] == 0:
             return "Город не найден"
         else:
-            return found_city['response']['items'][0]['title']
+            return found_city["response"]["items"][0]["title"]
 
 
-
-# Функция, возвращающая топ 3 фото по количеству лайков из списка всех фото пользователя
 def get_top3_likes(all_foto: dict) -> str:
+    """
+    Возвращает топ 3 фото по количеству лайков из списка всех фото пользователя.
+
+    Параметры:
+        all_foto (dict): Словарь с информацией о всех фотографиях пользователя.
+
+    Возвращаемое значение:
+        Строка с идентификаторами топ 3 фото или сообщение о том, что фотографии отсутствуют.
+    """
     foto_count = 3
     list_foto = list()
 
-    if all_foto['response']['count'] == 0:
+    if all_foto["response"]["count"] == 0:
         return "фотографии нет"
-    elif all_foto['response']['count'] < 3:
-        foto_count = all_foto['response']['count']
+    elif all_foto["response"]["count"] < 3:
+        foto_count = all_foto["response"]["count"]
 
-    for i in all_foto['response']['items']:
+    for i in all_foto["response"]["items"]:
         list_foto.append(f'photo{i["owner_id"]}_{i["id"]}')
 
     return " ,".join(sorted(list_foto, key=lambda x: x[1], reverse=True)[:foto_count])
-
 
 if __name__ == '__main__':
 
@@ -194,23 +273,6 @@ if __name__ == '__main__':
         user_token = data_json["access_token"]
 
     vk = My_VkApi(group_access_token)
-    # vk_user = vk.get_user_info(user_id)
-    # pprint(vk_user)
-    # age_user = vk_user[user_id]['age']
-    # sex_user = vk_user[user_id]['sex']
-
-    # # pprint(vk.get_user_photos(user_id))
-    # sex = 2 if sex_user == 'Женский' else 1 # выбор противоположного пола
-    # age_from = age_user - 10 if age_user - 10 >= 16 else 16 # минимальный возраст для поиска 16 лет
-    # age_to = age_user + 5
-    # city = vk_user[user_id]['city'] # город нашего пользователя
-    # search_city = input('введите название города: ')
     search_city = 'Ярославль'
     found_city = My_VkApi(group_access_token).search_city(search_city)
-
     print(found_city)
-    # city = 'Orekhovo-Zuevo'
-    # city = 'Ярославль'
-    # find_users = vk.search_users(sex, age_from, age_to, found_city)
-    # pprint(find_users)
-    # pprint(vk.find_users_photos(find_users))
