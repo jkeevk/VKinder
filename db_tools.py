@@ -1,7 +1,6 @@
 import psycopg2
 import configparser
 from typing import List, Optional
-import VK_class
 
 
 class DB_creator:
@@ -77,7 +76,7 @@ class DB_creator:
         port = config["SETTINGS"]["port"]
         return database, user, password, host, port
 
-    def create_database(database: str='vkinder') -> None:
+    def create_database(database: str = "vkinder") -> None:
         """
         Создает новую базу данных.
 
@@ -182,7 +181,7 @@ class DB_creator:
 class DB_editor:
     """Класс для работы с базой данных.
 
-    Этот класс предназначен для работы с базой данных. Он 
+    Этот класс предназначен для работы с базой данных. Он
     предоставляет методы для регистрации пользователей, управления
     черными списками и избранными пользователями.
 
@@ -195,7 +194,8 @@ class DB_editor:
     Примечания:
         Настройки подключения хранятся в файле settings.ini
     """
-    def __init__(self, database: str='vkinder') -> None:
+
+    def __init__(self, database: str = "vkinder") -> None:
         """
         Инициализация соединения с базой данных PostgreSQL.
 
@@ -224,11 +224,14 @@ class DB_editor:
             city (str): Город пользователя.
         """
         try:
-            self.cur.execute("""
+            self.cur.execute(
+                """
             INSERT INTO users(user_id, age, sex, city) 
             VALUES(%s, %s, %s, %s)
             ON CONFLICT (user_id) DO NOTHING;
-            """, (user_id, age, sex, city))
+            """,
+                (user_id, age, sex, city),
+            )
         except Exception as e:
             print(e)
 
@@ -238,20 +241,29 @@ class DB_editor:
 
         Параметры:
             user_id (int): Уникальный идентификатор основного пользователя.
-            black_list_user_id (int): Уникальный идентификатор пользователя, 
+            black_list_user_id (int): Уникальный идентификатор пользователя,
             которого необходимо добавить в черный список.
         """
         try:
-            self.cur.execute("""
+            self.cur.execute(
+                """
             INSERT INTO black_list(user_id, black_list_user_id) 
             VALUES(%s, %s)
             ON CONFLICT (user_id, black_list_user_id) DO NOTHING;
-            """, (user_id, black_list_user_id))
+            """,
+                (user_id, black_list_user_id),
+            )
         except Exception as e:
             print(e)
 
-
-    def add_to_favourites(self, user_id: int, name: str, last_name: str, url: str, attachments: Optional[List[str]]) -> None:
+    def add_to_favourites(
+        self,
+        user_id: int,
+        name: str,
+        last_name: str,
+        url: str,
+        attachments: Optional[List[str]],
+    ) -> None:
         """
         Добавляет пользователя в избранное.
 
@@ -263,25 +275,36 @@ class DB_editor:
             attachments (Optional[List[str]]): Список вложений (3 ссылки на фотографии).
         """
         try:
-            self.cur.execute("""
+            self.cur.execute(
+                """
             INSERT INTO favourite_users(name, last_name, url, attachments) 
             VALUES(%s, %s, %s, %s)
             ON CONFLICT (url) DO NOTHING;
-            """, (name, last_name, str(url), attachments if attachments else None))
+            """,
+                (name, last_name, str(url), attachments if attachments else None),
+            )
 
             # Получаем id последнего добавленного или существующего.favorite_user_id
-            self.cur.execute("SELECT favourite_user_id FROM favourite_users WHERE url = %s", (str(url),))
+            self.cur.execute(
+                "SELECT favourite_user_id FROM favourite_users WHERE url = %s",
+                (str(url),),
+            )
 
             favourite_user_id = self.cur.fetchone()
 
-            if favourite_user_id:  # Если пользователь был успешно добавлен или уже существует
+            if (
+                favourite_user_id
+            ):  # Если пользователь был успешно добавлен или уже существует
                 favourite_user_id = favourite_user_id[0]  # Извлекаем id
                 # Теперь добавляем запись в таблицу favourites
-                self.cur.execute("""
+                self.cur.execute(
+                    """
                 INSERT INTO favourites(user_id, favourite_user_id) 
                 VALUES(%s, %s)
                 ON CONFLICT (user_id, favourite_user_id) DO NOTHING;
-                """, (user_id, str(favourite_user_id)))
+                """,
+                    (user_id, str(favourite_user_id)),
+                )
             else:
                 print("Error fetching favourite user ID.")
 
@@ -296,21 +319,27 @@ class DB_editor:
             user_id (int): Уникальный идентификатор пользователя, для которого требуется получить список избранных.
 
         Возвращаемое значение:
-            Optional[List[dict]]: Список словарей, каждый из которых содержит 
-            имя (`name`), фамилию (`last_name`) и URL (`url`) избранного пользователя, 
+            Optional[List[dict]]: Список словарей, каждый из которых содержит
+            имя (`name`), фамилию (`last_name`) и URL (`url`) избранного пользователя,
             или None в случае ошибки.
         """
         try:
-            self.cur.execute("""
+            self.cur.execute(
+                """
             SELECT name, last_name, url
             FROM favourite_users
             JOIN favourites ON favourite_users.favourite_user_id = favourites.favourite_user_id
             WHERE user_id = %s
-            """, (user_id,))
-            
+            """,
+                (user_id,),
+            )
+
             # Преобразуем результат в список словарей для удобства
             result = self.cur.fetchall()
-            return [{"name": row[0], "last_name": row[1], "url": str(row[2])} for row in result]
+            return [
+                {"name": row[0], "last_name": row[1], "url": str(row[2])}
+                for row in result
+            ]
 
         except Exception as e:
             print(f"Error fetching favourites: {e}")
@@ -327,12 +356,15 @@ class DB_editor:
             dict словарь {"user_id": "id_пользователя", "blocked": [список заблокированных пользователей]}
         """
         try:
-            self.cur.execute("""
+            self.cur.execute(
+                """
             SELECT black_list_user_id
             FROM black_list
             WHERE user_id = %s
-            """, (user_id,))
-            
+            """,
+                (user_id,),
+            )
+
             result = self.cur.fetchall()
             # Создаем словарь, чтобы хранить заблокированных пользователей для каждого user_id
             blocked_dict = {}
@@ -348,13 +380,73 @@ class DB_editor:
             print(f"Error fetching black list: {e}")
             return None
 
-    def get_black_list_user_id(self, user_id: int):
+    def get_user_city(self, user_id: int) -> str:
+        """
+        Получает город пользователя по его идентификатору.
+
+        Параметры:
+            user_id: Идентификатор пользователя.
+
+        Возвращаемое значение:
+            Название города пользователя или None в случае ошибки.
+        """
         try:
-            self.cur.execute("""
+            self.cur.execute(
+                """
+                SELECT city
+                FROM users
+                WHERE user_id = %s
+                """,
+                (user_id,),
+            )
+            result = self.cur.fetchone()
+            return result[0] if result else None  # Проверка на наличие результата
+        except Exception as e:
+            print(f"Error fetching user city: {e}")
+            return None
+
+    def update_user_city(self, user_id: int, city: str) -> None:
+        """
+        Обновляет город пользователя по его идентификатору.
+
+        Параметры:
+            user_id: Идентификатор пользователя.
+
+        Возвращаемое значение:
+            Новое название города, которое будет сохранено.
+        """
+        try:
+            self.cur.execute(
+                """
+            UPDATE users
+            SET city = %s
+            WHERE user_id = %s;
+            """,
+                (city, user_id),
+            )
+            self.cur.connection.commit()  # Не забудьте закоммитить изменения
+        except Exception as e:
+            print(f"Error updating user city: {e}")
+
+    def get_black_list_user_id(self, user_id: int) -> list[int] | None:
+        """
+        Получает список идентификаторов пользователей из черного списка для данного пользователя.
+
+        Параметры:
+            user_id: Идентификатор пользователя.
+
+        Возвращаемое значение:
+            Список идентификаторов черного списка или None в случае ошибки.
+        """
+        try:
+            self.cur.execute(
+                """
             SELECT black_list_user_id
             FROM black_list
             WHERE user_id = %s
-            """, (user_id,))
+            """,
+                (user_id,),
+            )
             # Преобразуем результат в список
             return [row[0] for row in self.cur.fetchall()]
 
@@ -369,18 +461,12 @@ def test_create_db():
     """
     DB_creator.create_database(database)  # создаём базу данных
     with DB_creator(database) as db:
-        print(
-            "Status OK" if db.conn.closed == 0 else "Connection is closed"
-        )
+        print("Status OK" if db.conn.closed == 0 else "Connection is closed")
         db.del_table()  # удаляем таблицы
         db.create_tables()  # создаём таблицы
 
         print("Completed!")
-    print(
-        "Connection is closed"
-        if db.conn.closed == 1
-        else "Close connection!"
-    )
+    print("Connection is closed" if db.conn.closed == 1 else "Close connection!")
 
 
 def test_edit_db():
@@ -389,39 +475,40 @@ def test_edit_db():
     """
     # данные нашего пользователя (получает бот)
     vk_id = 1
-    vk_user_city = 'SPB'
+    vk_user_city = "SPB"
     vk_user_sex = 2
     vk_user_age = 32
     vk_user = DB_editor(database)
 
     # создаём запись в базе данных
     vk_user.register_user(vk_id, vk_user_age, vk_user_sex, vk_user_city)
-    
+
     # добавляем в черный список id пользователя
     black_list_user_id = 999
     vk_user.add_to_black_list(vk_id, black_list_user_id)
     black_list_user_id = 1337
     vk_user.add_to_black_list(vk_id, black_list_user_id)
-    # добавляем в избранное 
-    name = 'Понравившаяся'
-    last_name = 'Персона'
-    url = 'vk.com/id777777'
-    attachments = ['url_1, url_2, url_3']
+    # добавляем в избранное
+    name = "Понравившаяся"
+    last_name = "Персона"
+    url = "vk.com/id777777"
+    attachments = ["url_1, url_2, url_3"]
     vk_user.add_to_favourites(vk_id, name, last_name, url, attachments)
 
-    name = 'Другая'
-    last_name = 'Персона'
-    url = 'vk.com/id88888'
-    attachments = ['url_1, url_2, url_3']
+    name = "Другая"
+    last_name = "Персона"
+    url = "vk.com/id88888"
+    attachments = ["url_1, url_2, url_3"]
     vk_user.add_to_favourites(vk_id, name, last_name, url, attachments)
 
-    name = 'Третья'
-    last_name = 'Персона'
-    url = 'vk.com/id999'
-    attachments = ['url_1, url_2, url_3']
+    name = "Третья"
+    last_name = "Персона"
+    url = "vk.com/id999"
+    attachments = ["url_1, url_2, url_3"]
     vk_user.add_to_favourites(vk_id, name, last_name, url, attachments)
 
     print(vk_user.get_favourites(vk_id))
+
 
 if __name__ == "__main__":
     database = "vkinder"
@@ -433,7 +520,7 @@ if __name__ == "__main__":
     vk_user_sex = 2
     vk_user_age = 32
     vk_user = DB_editor(database)
-
+    # print(vk_user.get_user_city(11767565))
     # result = [['Ekaterina',
     #             'Kalnina',
     #             'https://vk.com/id769900586',
