@@ -222,7 +222,7 @@ class My_VkApi(ApiBasic):
         return all_persons
 
     # функция поиска города
-    def search_city(self, city: str) -> tuple:
+    def search_city(self, city: str) -> tuple | str:
         """
         Ищет город по названию.
 
@@ -241,7 +241,7 @@ class My_VkApi(ApiBasic):
         if found_city["response"]["count"] == 0:
             return "Город не найден"
         else:
-            return found_city["response"]["items"][0]["title"], found_city["response"][0]["id"]
+            return found_city["response"]["items"][0]["title"], found_city["response"]["items"][0]["id"]
 
     def search_city_by_id(self, city_id: int) -> str:
         """
@@ -298,14 +298,5 @@ if __name__ == '__main__':
         user_id = data_json["user_id"]
         user_token = data_json["access_token"]
 
-    # search_city = 'Ярославль'
-    # found_city = My_VkApi(group_access_token).search_city(search_city)
-    # print(found_city)
-
-    vk_user_info = My_VkApi(user_token).get_user_info(user_id)
-    pprint(vk_user_info)
-    sex = 1 if vk_user_info[user_id]['sex'] == 'Женский' else 2
-    age_from = vk_user_info[user_id]["age"] - 5
-    age_to = vk_user_info[user_id]["age"] + 5
-    city_id = vk_user_info[user_id]['city_id']
-    pprint(My_VkApi(user_token).search_users(sex, age_from, age_to, city_id))
+    vk_user = My_VkApi(user_token)
+    pprint(vk_user.get_user_info(user_id))
