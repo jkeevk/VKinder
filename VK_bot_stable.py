@@ -6,6 +6,7 @@ import json
 from db_tools import DB_editor
 from VK_class import get_top3_likes
 
+
 class VkBot:
     """
     Класс VkBot предназначен для взаимодействия с API ВКонтакте,
@@ -53,7 +54,6 @@ class VkBot:
             "✨ Нажмите на кнопку, чтобы продолжить!😊"
         )
 
-            
     def write_msg(self, user_id: int, message: str, keyboard=None, attachment=None) -> None:
         """
         Отправляет сообщение пользователю с опциональной клавиатурой и вложениями.
@@ -75,7 +75,6 @@ class VkBot:
             'attachment': attachment
         })
 
-
     def start_buttons(self):
         """
         Создает стартовую клавиатуру для бота.
@@ -89,7 +88,6 @@ class VkBot:
         keyboard.add_line()  
         keyboard.add_button('Сменить город', color=VkKeyboardColor.SECONDARY)
         return keyboard.get_keyboard()
-        
 
     def create_keyboard(self):
         """
@@ -190,6 +188,8 @@ class VkBot:
         user_vk_id = user_id  # Получаем ID пользователя
         user_vk_sex = 2 if user_sex == "Женский" else 1
 
+        user_city = user_info[user_id]['city_id']
+
         if not self.database.get_user_city(user_id):
             user_city = user_info[user_id].get(
                 "city", "Неизвестен"
@@ -212,9 +212,9 @@ class VkBot:
             ошибки или если пользователь заблокирован.
         """
         blocked_list = self.database.get_black_list_user_id(event.user_id) # список заблокированных
-        favourite_list = [int(favourite['url']) for favourite in self.database.get_favourites(event.user_id)] # список избранных
+        blocked_list.extend([int(favourite['url']) for favourite in self.database.get_favourites(event.user_id)]) # список избранных
         try:
-            if user_id not in blocked_list or user_id not in favourite_list:
+            if user_id not in blocked_list:
                 found_user_fio = My_VkApi(self.access_token).get_short_user_info(user_id)
                 # Получаем все фотографии пользователя
                 found_user_photos = My_VkApi(self.access_token).get_user_photos(user_id)
@@ -301,6 +301,7 @@ class VkBot:
         """
         user_request = event.text
         found_city = My_VkApi(self.access_token).search_city(user_request)
+
         if event.text:
             if user_request.lower() == "правила":
                 self.write_msg(event.user_id, self.instructions, self.start_buttons())
@@ -308,9 +309,9 @@ class VkBot:
                 self.write_msg(event.user_id, "Укажите ваш город", self.start_buttons())
             elif not found_city == "Город не найден":
                 self.write_msg(
-                    event_user_id, f"Выбран город: {found_city}", self.start_buttons()
+                    event_user_id, f"Выбран город: {found_city[0]}", self.start_buttons()
                 )
-                self.database.update_user_city(event.user_id, found_city)
+                self.database.update_user_city(event.user_id, found_city[1])
                 state_configed = False  # Сбрасываем настройку пользователя для генерации для нового города
                 return state_configed
         else:
@@ -357,7 +358,7 @@ class VkBot:
             if self.database.get_user_city(event.user_id) != "Неизвестен":
                 if not state_configed: # Проверяем флаг конфигурации
                     user_city = self.database.get_user_city(user_vk_id)
-                    all_found_users = My_VkApi(self.user_token).search_users(opposite_sex, age_min, age_max, user_city)
+                    all_found_users = My_VkApi(self.user_token).search_users(opposite_sex, age_min, age_max, int(user_city))
                     all_found_users_generator = self.photo_generator(all_found_users)
                     state_configed = True
                 # Сообщение от пользователя
