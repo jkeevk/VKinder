@@ -222,7 +222,7 @@ class My_VkApi(ApiBasic):
         return all_persons
 
     # функция поиска города
-    def search_city(self, city: str) -> str:
+    def search_city(self, city: str) -> tuple:
         """
         Ищет город по названию.
 
@@ -241,7 +241,7 @@ class My_VkApi(ApiBasic):
         if found_city["response"]["count"] == 0:
             return "Город не найден"
         else:
-            return found_city["response"]["items"][0]["title"]
+            return found_city["response"]["items"][0]["title"], found_city["response"][0]["id"]
 
     def search_city_by_id(self, city_id: int) -> str:
         """
