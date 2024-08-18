@@ -93,9 +93,11 @@ class My_VkApi(ApiBasic):
         # Если у пользователя скрыт возраст или год рождения, то берем его по умолчанию
         try:
             user_city = user_info_resp["response"][0]["city"]["title"]
+            user_city_id = user_info_resp["response"][0]["city"]["id"]
         except:
             print("Город неизвестен")
             user_city = "Неизвестен"
+            user_city_id = 0
         try:
             age_user = datetime.datetime.now().year - int(
                 user_info_resp["response"][0]["bdate"].split(".")[2]
@@ -108,6 +110,7 @@ class My_VkApi(ApiBasic):
             "name": user_info_resp["response"][0]["first_name"],
             "lastname": user_info_resp["response"][0]["last_name"],
             "city": user_city,
+            "city_id": user_city_id,
             "age": age_user,
             "sex": "Женский" if user_info_resp["response"][0]["sex"] == 1 else "Мужской"
                    if user_info_resp["response"][0]["sex"] == 2 else "Неизвестный",
@@ -154,7 +157,7 @@ class My_VkApi(ApiBasic):
             response_type="json",
         )
     # Поиск пользователей по параметрам на выходе список идентификаторов пользователей
-    def search_users(self, sex: int, age_from: int, age_to: int, city: str) -> list:
+    def search_users(self, sex: int, age_from: int, age_to: int, city_id: int) -> list:
         """Получает список идентификаторов пользователей в зависимости от заданных параметров.
 
         Параметры:
@@ -179,7 +182,7 @@ class My_VkApi(ApiBasic):
                 "has_photo": 1,  # Указывает, должны ли искомые пользователи иметь фотографии.
                 "count": 100,  # Количество возвращаемых результатов.
                 "online": 1,  # Указывает, должны ли пользователи быть онлайн.
-                "hometown": city,  # Город, в котором должны находиться искомые пользователи.
+                "city": city_id,  # id города, в котором должны находиться искомые пользователи.
                 **self.params,
             },
             response_type="json",
@@ -240,6 +243,28 @@ class My_VkApi(ApiBasic):
         else:
             return found_city["response"]["items"][0]["title"]
 
+    def search_city_by_id(self, city_id: int) -> str:
+        """
+        Ищет город по id.
+
+        Параметры:
+            city_id (int): id города для поиска.
+
+        Возвращаемое значение:
+            Название найденного города или сообщение о том, что город не найден.
+        """
+        found_city = self._send_request(
+            http_method="GET",
+            uri_path="method/database.getCitiesById",
+            params={"city_ids": city_id, **self.params},
+            response_type="json",
+        )
+
+        if not found_city["response"][0]["title"]:
+            return "Город не найден"
+        else:
+            return found_city["response"][0]["title"]
+
 
 def get_top3_likes(all_foto: dict) -> str:
     """
@@ -264,6 +289,7 @@ def get_top3_likes(all_foto: dict) -> str:
 
     return " ,".join(sorted(list_foto, key=lambda x: x[1], reverse=True)[:foto_count])
 
+
 if __name__ == '__main__':
 
     with open('token.json', 'r') as file:
@@ -272,7 +298,14 @@ if __name__ == '__main__':
         user_id = data_json["user_id"]
         user_token = data_json["access_token"]
 
-    vk = My_VkApi(group_access_token)
-    search_city = 'Ярославль'
-    found_city = My_VkApi(group_access_token).search_city(search_city)
-    print(found_city)
+    # search_city = 'Ярославль'
+    # found_city = My_VkApi(group_access_token).search_city(search_city)
+    # print(found_city)
+
+    vk_user_info = My_VkApi(user_token).get_user_info(user_id)
+    pprint(vk_user_info)
+    sex = 1 if vk_user_info[user_id]['sex'] == 'Женский' else 2
+    age_from = vk_user_info[user_id]["age"] - 5
+    age_to = vk_user_info[user_id]["age"] + 5
+    city_id = vk_user_info[user_id]['city_id']
+    pprint(My_VkApi(user_token).search_users(sex, age_from, age_to, city_id))
