@@ -111,7 +111,7 @@ class DB_creator:
                     age INTEGER NOT NULL,
                     CONSTRAINT age_limit CHECK (age < 100),
                     sex VARCHAR(1) CHECK (sex IN ('1', '2')) NOT NULL,
-                    city TEXT NOT NULL
+                    city_id VARCHAR(255) NOT NULL
                 );
                 """
             )
@@ -133,7 +133,7 @@ class DB_creator:
                     favourite_user_id SERIAL PRIMARY KEY,
                     name VARCHAR(255) NOT NULL,
                     last_name VARCHAR(255) NOT NULL,
-                    url TEXT NOT NULL UNIQUE,
+                    favourite_user_vk_id INTEGER NOT NULL UNIQUE,
                     attachments TEXT[]
                 );
                 """
@@ -190,9 +190,13 @@ class DB_editor:
         add_to_black_list: Добавляет пользователя в черный список.
         add_to_favourites: Добавляет пользователя в избранное.
         get_favourites: Возвращает список избранных пользователей для указанного пользователя.
-        get_black_list_user_id: Получает список идентификаторов пользователей из черного списка для данного пользователя.
         get_user_city: Получает город пользователя.
         update_user_city: Обновляет город пользователя.
+        get_black_list_user_id: Получает список идентификаторов пользователей из черного списка для данного пользователя.
+        delete_last_favourite: Удаляет последнюю запись из списка избранного пользователя.
+        delete_all_favourites: Удаляет все записи из списка избранного пользователя.
+        delete_last_blocked: Удаляет последнюю запись из черного списка пользователя.
+        delete_all_blocked: Удаляет все записи из черного списка пользователя.
 
     Примечания:
         Настройки подключения хранятся в файле settings.ini
@@ -216,7 +220,7 @@ class DB_editor:
         self.cur = self.conn.cursor()
         self.conn.autocommit = True
 
-    def register_user(self, user_id: int, age: int, sex: int, city: str) -> None:
+    def register_user(self, user_id: int, age: int, sex: int, city_id: str) -> None:
         """
         Создает запись о пользователе в таблице users.
 
@@ -224,16 +228,16 @@ class DB_editor:
             user_id (int): Уникальный идентификатор пользователя в VK.
             age (int): Возраст пользователя.
             sex (int): Пол пользователя (1 или 2).
-            city (str): Город пользователя.
+            city_id (str): ID города пользователя или "Неизвестен".
         """
         try:
             self.cur.execute(
                 """
-            INSERT INTO users(user_id, age, sex, city) 
+            INSERT INTO users(user_id, age, sex, city_id) 
             VALUES(%s, %s, %s, %s)
             ON CONFLICT (user_id) DO NOTHING;
             """,
-                (user_id, age, sex, city),
+                (user_id, age, sex, city_id),
             )
         except Exception as e:
             print(e)
@@ -264,7 +268,7 @@ class DB_editor:
         user_id: int,
         name: str,
         last_name: str,
-        url: str,
+        favourite_user_vk_id: int,
         attachments: Optional[List[str]],
     ) -> None:
         """
@@ -274,23 +278,23 @@ class DB_editor:
             user_id (int): Уникальный идентификатор основного пользователя.
             name (str): Имя избранного пользователя.
             last_name (str): Фамилия избранного пользователя.
-            url (str): URL профиля избранного пользователя.
+            favourite_user_vk_id (int): VK ID профиля избранного пользователя.
             attachments (Optional[List[str]]): Список вложений (3 ссылки на фотографии).
         """
         try:
             self.cur.execute(
                 """
-            INSERT INTO favourite_users(name, last_name, url, attachments) 
+            INSERT INTO favourite_users(name, last_name, favourite_user_vk_id, attachments) 
             VALUES(%s, %s, %s, %s)
-            ON CONFLICT (url) DO NOTHING;
+            ON CONFLICT (favourite_user_vk_id) DO NOTHING;
             """,
-                (name, last_name, str(url), attachments if attachments else None),
+                (name, last_name, favourite_user_vk_id, attachments if attachments else None),
             )
 
             # Получаем id последнего добавленного или существующего.favorite_user_id
             self.cur.execute(
-                "SELECT favourite_user_id FROM favourite_users WHERE url = %s",
-                (str(url),),
+                "SELECT favourite_user_id FROM favourite_users WHERE favourite_user_vk_id = %s",
+                (favourite_user_vk_id,),
             )
 
             favourite_user_id = self.cur.fetchone()
@@ -306,7 +310,7 @@ class DB_editor:
                 VALUES(%s, %s)
                 ON CONFLICT (user_id, favourite_user_id) DO NOTHING;
                 """,
-                    (user_id, str(favourite_user_id)),
+                    (user_id, favourite_user_id),
                 )
             else:
                 print("Error fetching favourite user ID.")
@@ -323,13 +327,13 @@ class DB_editor:
 
         Возвращаемое значение:
             Optional[List[dict]]: Список словарей, каждый из которых содержит
-            имя (`name`), фамилию (`last_name`) и URL (`url`) избранного пользователя,
+            имя (`name`), фамилию (`last_name`) и VK ID (`favourite_user_vk_id`) избранного пользователя,
             или None в случае ошибки.
         """
         try:
             self.cur.execute(
                 """
-            SELECT name, last_name, url
+            SELECT name, last_name, favourite_user_vk_id
             FROM favourite_users
             JOIN favourites ON favourite_users.favourite_user_id = favourites.favourite_user_id
             WHERE user_id = %s
@@ -340,7 +344,7 @@ class DB_editor:
             # Преобразуем результат в список словарей для удобства
             result = self.cur.fetchall()
             return [
-                {"name": row[0], "last_name": row[1], "url": str(row[2])}
+                {"name": row[0], "last_name": row[1], "favourite_user_vk_id": row[2]}
                 for row in result
             ]
 
@@ -361,7 +365,7 @@ class DB_editor:
         try:
             self.cur.execute(
                 """
-                SELECT city
+                SELECT city_id
                 FROM users
                 WHERE user_id = %s
                 """,
@@ -370,10 +374,10 @@ class DB_editor:
             result = self.cur.fetchone()
             return result[0] if result else None  # Проверка на наличие результата
         except Exception as e:
-            print(f"Error fetching user city: {e}")
+            print(f"Error fetching user city_id: {e}")
             return None
 
-    def update_user_city(self, user_id: int, city: str) -> None:
+    def update_user_city(self, user_id: int, city_id: str) -> None:
         """
         Обновляет город пользователя.
 
@@ -387,14 +391,14 @@ class DB_editor:
             self.cur.execute(
                 """
             UPDATE users
-            SET city = %s
+            SET city_id = %s
             WHERE user_id = %s;
             """,
-                (city, user_id),
+                (city_id, user_id),
             )
             self.cur.connection.commit()
         except Exception as e:
-            print(f"Error updating user city: {e}")
+            print(f"Error updating user city_id: {e}")
 
     def get_black_list_user_id(self, user_id: int) -> list[int] | None:
         """
@@ -422,7 +426,18 @@ class DB_editor:
             print(f"Error fetching black list: {e}")
             return None
         
-    def delete_last_favourite(self, user_id: int):
+    def delete_last_favourite(self, user_id: int) -> bool:
+        """
+        Удаляет последнюю запись из списка избранного пользователя.
+
+        Параметры:
+            user_id (int): Идентификатор пользователя, для которого будет удалено последнее избранное.
+
+        Возвращаемое значение:
+            bool: True, если запись успешно удалена; 
+                None, если запись отсутствует; 
+                или False в случае ошибки.
+        """
         try:
             self.cur.execute(
                 """
@@ -463,7 +478,17 @@ class DB_editor:
             print(f"Произошла ошибка: {e}")
             return None
         
-    def delete_all_favourites(self, user_id: int):
+    def delete_all_favourites(self, user_id: int) -> bool:
+        """
+        Удаляет все записи из списка избранного пользователя.
+
+        Параметры:
+            user_id (int): Идентификатор пользователя, для которого будут удалены все избранные записи.
+
+        Возвращаемое значение:
+            bool: True, если все записи успешно удалены;
+                False в случае ошибки.
+        """
         try:
             self.cur.execute(
                 """
@@ -501,7 +526,17 @@ class DB_editor:
             self.conn.rollback()  # В случае ошибки откатить транзакцию
             return None
         
-    def delete_last_blocked(self, user_id):
+    def delete_last_blocked(self, user_id: int) -> bool:
+        """
+        Удаляет последнюю запись из черного списка пользователя.
+
+        Параметры:
+            user_id (int): Идентификатор пользователя, для которого будет удален последний заблокированный.
+
+        Возвращаемое значение:
+            bool: True, если запись успешно удалена;
+                False в случае ошибки.
+        """
         try:
             self.cur.execute(
                 """
@@ -531,7 +566,17 @@ class DB_editor:
             self.conn.rollback()  # В случае ошибки откатить транзакцию
             return None
         
-    def delete_all_blocked(self, user_id):
+    def delete_all_blocked(self, user_id: int) -> bool:
+        """
+        Удаляет все записи из черного списка пользователя.
+
+        Параметры:
+            user_id (int): Идентификатор пользователя, для которого будут удалены все заблокированные записи.
+
+        Возвращаемое значение:
+            bool: True, если все записи успешно удалены; 
+                False в случае ошибки.
+        """
         try:
             self.cur.execute(
                 """
@@ -550,6 +595,7 @@ class DB_editor:
             self.conn.rollback()  # В случае ошибки откатить транзакцию
             return None
         
+
 def test_create_db():
     """
     Для отлатки класса DB_creator
@@ -586,21 +632,21 @@ def test_edit_db():
     # добавляем в избранное
     name = "Понравившаяся"
     last_name = "Персона"
-    url = "vk.com/id777777"
+    favourite_user_vk_id = "id777777"
     attachments = ["url_1, url_2, url_3"]
-    vk_user.add_to_favourites(vk_id, name, last_name, url, attachments)
+    vk_user.add_to_favourites(vk_id, name, last_name, favourite_user_vk_id, attachments)
 
     name = "Другая"
     last_name = "Персона"
-    url = "vk.com/id88888"
+    favourite_user_vk_id = "88888"
     attachments = ["url_1, url_2, url_3"]
-    vk_user.add_to_favourites(vk_id, name, last_name, url, attachments)
+    vk_user.add_to_favourites(vk_id, name, last_name, favourite_user_vk_id, attachments)
 
     name = "Третья"
     last_name = "Персона"
-    url = "vk.com/id999"
+    favourite_user_vk_id = "999"
     attachments = ["url_1, url_2, url_3"]
-    vk_user.add_to_favourites(vk_id, name, last_name, url, attachments)
+    vk_user.add_to_favourites(vk_id, name, last_name, favourite_user_vk_id, attachments)
 
     print(vk_user.get_favourites(vk_id))
 
@@ -609,4 +655,3 @@ if __name__ == "__main__":
     database = "vkinder"
     test_create_db()
     # test_edit_db()
-    

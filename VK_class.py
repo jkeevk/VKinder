@@ -156,9 +156,10 @@ class My_VkApi(ApiBasic):
             },
             response_type="json",
         )
-    # Поиск пользователей по параметрам на выходе список идентификаторов пользователей
+    
     def search_users(self, sex: int, age_from: int, age_to: int, city_id: int) -> list:
-        """Получает список идентификаторов пользователей в зависимости от заданных параметров.
+        """
+        Получает список идентификаторов пользователей в зависимости от заданных параметров.
 
         Параметры:
             sex (int): Пол искомых пользователей (1 - женский, 2 - мужской, 0 - не указывать).
@@ -169,8 +170,8 @@ class My_VkApi(ApiBasic):
         Возвращаемое значение:
             Список идентификаторов найденных пользователей.
         """
-        all_fined_users_id = []
-        all_fined_users = self._send_request(
+        all_found_users_id = []
+        all_found_users = self._send_request(
             http_method="GET",
             uri_path="method/users.search",
             params={
@@ -187,11 +188,11 @@ class My_VkApi(ApiBasic):
             },
             response_type="json",
         )
-        for user in all_fined_users["response"]["items"]:
-            all_fined_users_id.append(user["id"])
-        random.shuffle(all_fined_users_id)
+        for user in all_found_users["response"]["items"]:
+            all_found_users_id.append(user["id"])
+        random.shuffle(all_found_users_id)
 
-        return all_fined_users_id
+        return all_found_users_id
 
     def find_users_photos(self, find_users: dict) -> list[list[str]]:
         """Получает топ 3 фото пользователей по количеству лайков.
@@ -221,7 +222,6 @@ class My_VkApi(ApiBasic):
 
         return all_persons
 
-    # функция поиска города
     def search_city(self, city: str) -> tuple | str:
         """
         Ищет город по названию.
@@ -299,4 +299,4 @@ if __name__ == '__main__':
         user_token = data_json["access_token"]
 
     vk_user = My_VkApi(user_token)
-    pprint(vk_user.get_user_info(user_id))
+    # pprint(vk_user.get_user_info(user_id))
