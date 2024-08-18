@@ -50,7 +50,7 @@ VKinder — это бот для ВКонтакте, который помога
    `pip install -r requirements.txt`
 3. **Создание базы данных:**
 - Запустите файл `db_tools.py` для создания БД и необходимых таблиц.
-- 
+ 
   <img src="static/diagram.jpg" width=45% /><br /><br />
   
 4. **Запуск бота:**
